@@ -17,7 +17,7 @@ import {
   orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc 
 } from 'firebase/firestore';
 
-// --- 1. FIREBASE CONFIGURATION (Safe Mode) ---
+// --- 1. FIREBASE CONFIGURATION ---
 let app, auth, db;
 let initError = null;
 
@@ -41,47 +41,39 @@ try {
     initError = e.message;
 }
 
-// --- 2. "NORMAL" CSS STYLES ---
+// --- 2. CSS STYLES ---
 const cssStyles = `
-  /* Global Resets */
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   body { background-color: #f8f9fa; color: #333; padding-bottom: 80px; }
   
-  /* Utilities */
   .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .text-center { text-align: center; }
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  .hidden { display: none; }
   
-  /* Colors & Text */
   .text-orange { color: #e65100; }
   .text-green { color: #2e7d32; }
   .text-gray { color: #666; font-size: 0.9rem; }
   .font-bold { font-weight: 700; }
   
-  /* Buttons */
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  
-  /* Inputs */
+  .btn-link { background: none; border: none; color: #e65100; font-weight: bold; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
+
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
   .input:focus { border-color: #e65100; }
   
-  /* Cards */
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
   .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
   
-  /* Headers */
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
   .logo { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 8px; }
   
-  /* Specific Elements */
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
   .badge-orange { background: #fff3e0; color: #e65100; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
@@ -89,11 +81,9 @@ const cssStyles = `
   .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
   .portal-card:hover { border-color: #e65100; transform: translateY(-2px); }
   
-  /* Modal */
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
   
-  /* Mobile Responsive */
   @media (min-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -213,24 +203,103 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
+// --- SECURE AUTH COMPONENT (WITH SIGN UP) ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [step, setStep] = useState(1);
-    const [identifier, setIdentifier] = useState(''); const [secret, setSecret] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
-    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [isSignup, setIsSignup] = useState(false); // Toggle between Login and Signup
+    const [name, setName] = useState(''); // New field for signup
+    const [identifier, setIdentifier] = useState(''); 
+    const [secret, setSecret] = useState(''); 
+    const [error, setError] = useState(''); 
+    const [loading, setLoading] = useState(false);
+    const db = getFirestore(); 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    const handleSendOTP = (e) => { e.preventDefault(); setLoading(true); setTimeout(() => { setLoading(false); setStep(2); }, 800); };
-    const handleVerifyOTP = async (e) => { e.preventDefault(); if (secret !== '1234') { setError('Invalid OTP. Use 1234'); return; } setLoading(true); const auth = getAuth(); if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: `User ${identifier.slice(-4)}` }); onSuccess({ name: `User ${identifier}` }); };
-    const handlePartnerLogin = async (e) => { e.preventDefault(); setError(''); setLoading(true); try { if (type === 'admin') { if (identifier === 'admin' && secret === 'admin123') { onSuccess({ name: 'Super Admin', role: 'admin' }); return; } else { throw new Error("Invalid Admin Credentials. Try admin/admin123"); } } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), where('username', '==', identifier), where('password', '==', secret)); const snapshot = await getDocs(q); if (snapshot.empty) throw new Error("Invalid credentials."); const partnerData = snapshot.docs[0].data(); if (type === 'restaurant' && partnerData.role !== 'restaurant') throw new Error("Unauthorized"); if (type === 'driver' && partnerData.role !== 'driver') throw new Error("Unauthorized"); const auth = getAuth(); if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: partnerData.name }); onSuccess(partnerData); } catch (err) { setError(err.message); setLoading(false); } };
+    const handleSendOTP = (e) => { 
+        e.preventDefault(); 
+        if(isSignup && !name.trim()) { setError("Name is required"); return; }
+        setLoading(true); 
+        setTimeout(() => { setLoading(false); setStep(2); }, 800); 
+    };
+
+    const handleVerifyOTP = async (e) => { 
+        e.preventDefault(); 
+        if (secret !== '1234') { setError('Invalid OTP. Use 1234'); return; } 
+        setLoading(true); 
+        const auth = getAuth(); 
+        
+        // If signing up, use the name they entered. If login, default to existing or generic.
+        const displayName = isSignup ? name : `User ${identifier.slice(-4)}`;
+        
+        if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: displayName }); 
+        onSuccess({ name: displayName }); 
+    };
+
+    const handlePartnerLogin = async (e) => { 
+        e.preventDefault(); setError(''); setLoading(true); 
+        try { 
+            if (type === 'admin') { 
+                if (identifier === 'admin' && secret === 'admin123') { onSuccess({ name: 'Super Admin', role: 'admin' }); return; } 
+                else { throw new Error("Invalid Admin Credentials. Try admin/admin123"); } 
+            } 
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), where('username', '==', identifier), where('password', '==', secret)); 
+            const snapshot = await getDocs(q); 
+            if (snapshot.empty) throw new Error("Invalid credentials."); 
+            const partnerData = snapshot.docs[0].data(); 
+            if (type === 'restaurant' && partnerData.role !== 'restaurant') throw new Error("Unauthorized"); 
+            if (type === 'driver' && partnerData.role !== 'driver') throw new Error("Unauthorized"); 
+            const auth = getAuth(); 
+            if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: partnerData.name }); 
+            onSuccess(partnerData); 
+        } catch (err) { setError(err.message); setLoading(false); } 
+    };
 
     return (
         <div className="modal-overlay">
              <div className="modal">
                  <button onClick={onBack} style={{position:'absolute', top:16, right:16, border:'none', background:'none', cursor:'pointer'}}><X size={24} color="#999"/></button>
+                 
                  <div className="text-center" style={{marginBottom: 24}}>
-                     <h2>{type === 'customer' ? 'Login' : 'Secure Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? 'Enter Phone Number' : 'Enter Credentials'}</p>
+                     <h2>
+                         {type === 'customer' 
+                            ? (isSignup ? 'Create Account' : 'Welcome Back') 
+                            : 'Secure Login'}
+                     </h2>
+                     <p className="text-gray">{type === 'customer' ? 'Enter details below' : 'Enter Credentials'}</p>
                  </div>
-                 {type === 'customer' ? ( step === 1 ? ( <form onSubmit={handleSendOTP}><input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Phone Number" required /><button className="btn btn-primary">{loading?'Sending...':'Get OTP'}</button></form> ) : ( <form onSubmit={handleVerifyOTP}><input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="OTP (1234)" required /><button className="btn btn-primary">Verify</button></form> ) ) : ( <form onSubmit={handlePartnerLogin}><input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required /><input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password" required />{error && <p style={{color:'red', marginBottom:10}}>{error}</p>}<button className="btn btn-primary">{loading?'Auth...':'Login'}</button></form> )}
+
+                 {type === 'customer' ? ( 
+                    step === 1 ? ( 
+                        <form onSubmit={handleSendOTP}>
+                            {isSignup && (
+                                <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
+                            )}
+                            <input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Phone Number" required />
+                            {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
+                            <button className="btn btn-primary">{loading?'Sending...':'Get OTP'}</button>
+                            
+                            <div style={{marginTop: 16, textAlign: 'center'}}>
+                                <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="btn-link">
+                                    {isSignup ? "Already have an account? Login" : "New here? Create Account"}
+                                </button>
+                            </div>
+                        </form> 
+                    ) : ( 
+                        <form onSubmit={handleVerifyOTP}>
+                            <input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="OTP (1234)" required />
+                            {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
+                            <button className="btn btn-primary">Verify & {isSignup ? 'Register' : 'Login'}</button>
+                            <button type="button" onClick={()=>setStep(1)} className="btn-link" style={{marginTop:10, display:'block', width:'100%'}}>Change Number</button>
+                        </form> 
+                    ) 
+                 ) : ( 
+                    <form onSubmit={handlePartnerLogin}>
+                        <input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required />
+                        <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password" required />
+                        {error && <p style={{color:'red', marginBottom:10}}>{error}</p>}
+                        <button className="btn btn-primary">{loading?'Auth...':'Login'}</button>
+                    </form> 
+                 )}
              </div>
         </div>
     );
