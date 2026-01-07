@@ -5,7 +5,7 @@ import {
   CheckCircle, Utensils, ArrowLeft, X, CreditCard, Bike, 
   Package, Home, Navigation, DollarSign, Activity, BarChart3,
   Briefcase, ChevronRight, LogOut, ShieldCheck, Globe, Menu,
-  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote
+  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote, Mail
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
@@ -38,49 +38,39 @@ try {
     initError = e.message;
 }
 
-// --- 2. CSS STYLES (Standard CSS) ---
+// --- 2. CSS STYLES ---
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  body { background-color: #f8f9fa; color: #333; padding-bottom: 80px; }
+  body { background-color: #f0f4f8; color: #333; padding-bottom: 80px; }
   .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .text-center { text-align: center; }
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  
-  .text-orange { color: #e65100; }
-  .text-green { color: #2e7d32; }
+  .text-blue { color: #2563eb; }
   .text-gray { color: #666; font-size: 0.9rem; }
   .font-bold { font-weight: 700; }
-  
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
-  .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
+  .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); }
   .btn-google { background: #4285F4; color: white; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.3); margin-bottom: 16px; }
   .btn-google:hover { background: #357ae8; }
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
-  .input:focus { border-color: #e65100; }
-  
+  .input:focus { border-color: #2563eb; }
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
   .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
-  
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
   .logo { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 8px; }
-  
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
-  .badge-orange { background: #fff3e0; color: #e65100; }
+  .badge-blue { background: #eff6ff; color: #2563eb; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
-  
   .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
-  .portal-card:hover { border-color: #e65100; transform: translateY(-2px); }
-  
+  .portal-card:hover { border-color: #2563eb; transform: translateY(-2px); }
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  
   @media (min-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -103,7 +93,7 @@ export default function App() {
   useEffect(() => {
     if (initError) { setLoading(false); return; }
     const initAuth = async () => {
-        // Wait for user action
+        // No anonymous login for users, wait for Google
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
@@ -149,18 +139,18 @@ function LandingPage({ setApp }) {
     return (
         <div style={{ background: 'white', minHeight: '100vh' }}>
             <div className="header flex-between">
-                <div className="logo"><Utensils color="#e65100"/> CraveCart</div>
+                <div className="logo"><Utensils color="#2563eb"/> CraveCart <span style={{fontSize:'0.8rem', color:'#ccc'}}>v2.0</span></div>
                 <div className="flex" style={{gap:10}}>
                     <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
                     <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order Food</button>
                 </div>
             </div>
             <div className="container text-center" style={{paddingTop: 60, paddingBottom: 100}}>
-                <h1 style={{fontSize: '3rem', marginBottom: 16}}>Delicious Food,<br/><span className="text-orange">Delivered.</span></h1>
+                <h1 style={{fontSize: '3rem', marginBottom: 16}}>Delicious Food,<br/><span className="text-blue">Delivered.</span></h1>
                 <p className="text-gray" style={{fontSize: '1.2rem', marginBottom: 40}}>The complete ecosystem for Customers, Restaurants, Drivers, and Owners.</p>
                 <div className="grid grid-3">
                     <button onClick={() => setApp('restaurant')} className="portal-card card">
-                        <div className="badge-orange" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
+                        <div className="badge-blue" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
                         <h3>Restaurant Partner</h3>
                         <p className="text-gray">Manage orders & menu</p>
                     </button>
@@ -184,7 +174,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     return (
         <div className="header flex-between">
             <div className="logo" style={{fontSize: '1.2rem'}}>
-                {activeApp === 'customer' ? <ShoppingBag color="#e65100"/> : activeApp === 'restaurant' ? <ChefHat color="#2e7d32"/> : activeApp === 'driver' ? <Bike color="#1565c0"/> : <ShieldCheck/>}
+                {activeApp === 'customer' ? <ShoppingBag color="#2563eb"/> : activeApp === 'restaurant' ? <ChefHat color="#2e7d32"/> : activeApp === 'driver' ? <Bike color="#1565c0"/> : <ShieldCheck/>}
                 <span style={{textTransform:'capitalize'}}>{activeApp} Portal</span>
             </div>
             <div className="flex" style={{gap: 16}}>
@@ -257,7 +247,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
                     <div className="text-center">
                         {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
                         
-                        <button onClick={handleGoogleLogin} className="btn btn-google">
+                        <button onClick={handleGoogleLogin} className="btn btn-google" style={{marginBottom: 16, width: '100%', justifyContent: 'center'}}>
                             {loading ? 'Connecting...' : 'Continue with Google'}
                         </button>
                         
