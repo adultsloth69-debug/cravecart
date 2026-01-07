@@ -30,7 +30,9 @@ const firebaseConfig = {
 };
 
 try {
-    if (!firebaseConfig.apiKey) throw new Error("Missing Config");
+    if (!firebaseConfig.apiKey) {
+        throw new Error("Missing Firebase Configuration in Vercel.");
+    }
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
     db = getFirestore(app);
@@ -54,7 +56,11 @@ const cssStyles = `
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
-  .btn-google { background: #4285F4; color: white; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.2); }
+  
+  /* GOOGLE BUTTON STYLE */
+  .btn-google { background: #4285F4; color: white; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.3); }
+  .btn-google:hover { background: #357ae8; }
+
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
@@ -92,6 +98,10 @@ export default function App() {
 
   useEffect(() => {
     if (initError) { setLoading(false); return; }
+    const initAuth = async () => {
+        // No anonymous login for users, wait for Google
+    };
+    initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
@@ -144,6 +154,7 @@ function LandingPage({ setApp }) {
             <div className="container text-center" style={{paddingTop: 60, paddingBottom: 100}}>
                 <h1 style={{fontSize: '3rem', marginBottom: 16}}>Delicious Food,<br/><span className="text-orange">Delivered.</span></h1>
                 <p className="text-gray" style={{fontSize: '1.2rem', marginBottom: 40}}>The complete ecosystem for Customers, Restaurants, Drivers, and Owners.</p>
+                
                 <div className="grid grid-3">
                     <button onClick={() => setApp('restaurant')} className="portal-card card">
                         <div className="badge-orange" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
@@ -186,7 +197,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH COMPONENT (GOOGLE LOGIN) ---
+// --- SECURE AUTH COMPONENT (GOOGLE + PARTNER LOGIN) ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
@@ -205,7 +216,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
             onSuccess({ name: user.displayName, uid: user.uid });
         } catch (error) {
             console.error(error);
-            setError("Google Login Failed: " + error.message);
+            setError("Google Login Failed. Make sure you added your Domain in Firebase Console -> Auth -> Settings -> Authorized Domains. " + error.message);
             setLoading(false);
         }
     };
@@ -235,17 +246,23 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  <button onClick={onBack} style={{position:'absolute', top:16, right:16, border:'none', background:'none', cursor:'pointer'}}><X size={24} color="#999"/></button>
                  
                  <div className="text-center" style={{marginBottom: 24}}>
-                     <h2>{type === 'customer' ? 'Sign In' : 'Partner Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? 'Secure login to place orders' : 'Enter credentials'}</p>
+                     <h2>{type === 'customer' ? 'Sign In' : 'Secure Login'}</h2>
+                     <p className="text-gray">{type === 'customer' ? 'Login securely to place orders' : 'Enter Partner Credentials'}</p>
                  </div>
 
                  {type === 'customer' ? ( 
                     <div className="text-center">
                         {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
-                        <button onClick={handleGoogleLogin} className="btn btn-google" style={{marginBottom: 16}}>
+                        
+                        <button onClick={handleGoogleLogin} className="btn btn-google" style={{marginBottom: 16, width: '100%', justifyContent: 'center'}}>
                             {loading ? 'Connecting...' : 'Continue with Google'}
                         </button>
-                        <p className="text-gray" style={{fontSize: '0.8rem'}}>No password required. Secure & Instant.</p>
+                        
+                        <div style={{marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16}}>
+                            <p className="text-gray" style={{fontSize: '0.8rem'}}>
+                                No password required.<br/>Instant access with your Google Account.
+                            </p>
+                        </div>
                     </div>
                  ) : ( 
                     <form onSubmit={handlePartnerLogin}>
