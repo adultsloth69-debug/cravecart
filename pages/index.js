@@ -5,7 +5,7 @@ import {
   CheckCircle, Utensils, ArrowLeft, X, CreditCard, Bike, 
   Package, Home, Navigation, DollarSign, Activity, BarChart3,
   Briefcase, ChevronRight, LogOut, ShieldCheck, Globe, Menu,
-  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote, Mail
+  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
@@ -30,9 +30,7 @@ const firebaseConfig = {
 };
 
 try {
-    if (!firebaseConfig.apiKey) {
-        throw new Error("Missing Firebase Configuration in Vercel.");
-    }
+    if (!firebaseConfig.apiKey) throw new Error("Missing Config");
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
     db = getFirestore(app);
@@ -40,7 +38,7 @@ try {
     initError = e.message;
 }
 
-// --- 2. CSS STYLES ---
+// --- 2. CSS STYLES (Standard CSS) ---
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   body { background-color: #f8f9fa; color: #333; padding-bottom: 80px; }
@@ -49,34 +47,40 @@ const cssStyles = `
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  
   .text-orange { color: #e65100; }
   .text-green { color: #2e7d32; }
   .text-gray { color: #666; font-size: 0.9rem; }
   .font-bold { font-weight: 700; }
+  
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
-  
-  /* GOOGLE BUTTON STYLE */
-  .btn-google { background: #4285F4; color: white; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.3); }
+  .btn-google { background: #4285F4; color: white; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.3); margin-bottom: 16px; }
   .btn-google:hover { background: #357ae8; }
-
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
+  
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
   .input:focus { border-color: #e65100; }
+  
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
   .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+  
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
   .logo { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 8px; }
+  
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
   .badge-orange { background: #fff3e0; color: #e65100; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
+  
   .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
   .portal-card:hover { border-color: #e65100; transform: translateY(-2px); }
+  
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  
   @media (min-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -99,7 +103,7 @@ export default function App() {
   useEffect(() => {
     if (initError) { setLoading(false); return; }
     const initAuth = async () => {
-        // No anonymous login for users, wait for Google
+        // Wait for user action
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
@@ -154,7 +158,6 @@ function LandingPage({ setApp }) {
             <div className="container text-center" style={{paddingTop: 60, paddingBottom: 100}}>
                 <h1 style={{fontSize: '3rem', marginBottom: 16}}>Delicious Food,<br/><span className="text-orange">Delivered.</span></h1>
                 <p className="text-gray" style={{fontSize: '1.2rem', marginBottom: 40}}>The complete ecosystem for Customers, Restaurants, Drivers, and Owners.</p>
-                
                 <div className="grid grid-3">
                     <button onClick={() => setApp('restaurant')} className="portal-card card">
                         <div className="badge-orange" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
@@ -197,7 +200,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH COMPONENT (GOOGLE + PARTNER LOGIN) ---
+// --- SECURE AUTH COMPONENT (GOOGLE LOGIN) ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
@@ -216,7 +219,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
             onSuccess({ name: user.displayName, uid: user.uid });
         } catch (error) {
             console.error(error);
-            setError("Google Login Failed. Make sure you added your Domain in Firebase Console -> Auth -> Settings -> Authorized Domains. " + error.message);
+            setError("Google Login Failed. Ensure 'Authorized Domains' is set in Firebase. " + error.message);
             setLoading(false);
         }
     };
@@ -247,14 +250,14 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  
                  <div className="text-center" style={{marginBottom: 24}}>
                      <h2>{type === 'customer' ? 'Sign In' : 'Secure Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? 'Login securely to place orders' : 'Enter Partner Credentials'}</p>
+                     <p className="text-gray">{type === 'customer' ? 'Secure login to place orders' : 'Enter Partner Credentials'}</p>
                  </div>
 
                  {type === 'customer' ? ( 
                     <div className="text-center">
                         {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
                         
-                        <button onClick={handleGoogleLogin} className="btn btn-google" style={{marginBottom: 16, width: '100%', justifyContent: 'center'}}>
+                        <button onClick={handleGoogleLogin} className="btn btn-google">
                             {loading ? 'Connecting...' : 'Continue with Google'}
                         </button>
                         
