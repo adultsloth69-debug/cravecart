@@ -10,7 +10,7 @@ import {
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   getAuth, signInAnonymously, onAuthStateChanged, 
-  updateProfile, signInWithCustomToken 
+  updateProfile, signInWithCustomToken, RecaptchaVerifier, signInWithPhoneNumber 
 } from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, onSnapshot, 
@@ -45,18 +45,15 @@ try {
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   body { background-color: #f8f9fa; color: #333; padding-bottom: 80px; }
-  
   .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .text-center { text-align: center; }
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  
   .text-orange { color: #e65100; }
   .text-green { color: #2e7d32; }
   .text-gray { color: #666; font-size: 0.9rem; }
   .font-bold { font-weight: 700; }
-  
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
@@ -64,26 +61,19 @@ const cssStyles = `
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
   .btn-link { background: none; border: none; color: #e65100; font-weight: bold; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
-
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
   .input:focus { border-color: #e65100; }
-  
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
   .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
-  
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
   .logo { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 8px; }
-  
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
   .badge-orange { background: #fff3e0; color: #e65100; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
-  
   .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
   .portal-card:hover { border-color: #e65100; transform: translateY(-2px); }
-  
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  
   @media (min-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -106,18 +96,20 @@ export default function App() {
   useEffect(() => {
     if (initError) { setLoading(false); return; }
     const initAuth = async () => {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-            await signInAnonymously(auth);
-        }
+        // We do NOT use anonymous login here for customers anymore
+        // We wait for them to sign in via phone
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
 
-  const handleLogout = useCallback(() => { setCart([]); setActiveApp('landing'); }, []);
+  const handleLogout = useCallback(async () => { 
+      setCart([]); 
+      await signOut(auth);
+      setActiveApp('landing'); 
+  }, []);
+  
   const goBackToHome = useCallback(() => { setActiveApp('landing'); }, []);
   const cartCount = useMemo(() => cart.reduce((a,b)=>a+b.qty,0), [cart]);
 
@@ -203,11 +195,11 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH COMPONENT (WITH SIGN UP) ---
+// --- SECURE AUTH COMPONENT (FIREBASE PHONE AUTH) ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [step, setStep] = useState(1);
-    const [isSignup, setIsSignup] = useState(false); // Toggle between Login and Signup
-    const [name, setName] = useState(''); // New field for signup
+    const [isSignup, setIsSignup] = useState(false);
+    const [name, setName] = useState('');
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
     const [error, setError] = useState(''); 
@@ -215,24 +207,63 @@ function SecureAuth({ type, onSuccess, onBack }) {
     const db = getFirestore(); 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    const handleSendOTP = (e) => { 
+    // --- FIREBASE PHONE AUTH LOGIC ---
+    useEffect(() => {
+        if (type === 'customer') {
+            try {
+                // Initialize reCAPTCHA
+                if (!window.recaptchaVerifier) {
+                    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                        'size': 'invisible',
+                        'callback': (response) => {
+                            // reCAPTCHA solved, allow signInWithPhoneNumber.
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Recaptcha Init Error:", e);
+            }
+        }
+    }, [type]);
+
+    const handleSendOTP = async (e) => { 
         e.preventDefault(); 
         if(isSignup && !name.trim()) { setError("Name is required"); return; }
         setLoading(true); 
-        setTimeout(() => { setLoading(false); setStep(2); }, 800); 
+        setError("");
+
+        try {
+            const appVerifier = window.recaptchaVerifier;
+            // Ensure phone has +country code. e.g., +91 for India
+            const formattedPhone = identifier.includes('+') ? identifier : `+91${identifier}`;
+            const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
+            window.confirmationResult = confirmationResult;
+            setStep(2);
+            setLoading(false);
+        } catch (error) {
+            console.error(error);
+            setError("SMS Failed. Ensure phone number includes +91. " + error.message);
+            setLoading(false);
+            // Reset recaptcha
+            if(window.recaptchaVerifier) window.recaptchaVerifier.clear();
+        }
     };
 
     const handleVerifyOTP = async (e) => { 
         e.preventDefault(); 
-        if (secret !== '1234') { setError('Invalid OTP. Use 1234'); return; } 
         setLoading(true); 
-        const auth = getAuth(); 
-        
-        // If signing up, use the name they entered. If login, default to existing or generic.
-        const displayName = isSignup ? name : `User ${identifier.slice(-4)}`;
-        
-        if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: displayName }); 
-        onSuccess({ name: displayName }); 
+        try {
+            const result = await window.confirmationResult.confirm(secret);
+            const user = result.user;
+            
+            // If signing up, save name
+            const displayName = isSignup ? name : (user.displayName || `User ${identifier.slice(-4)}`);
+            await updateProfile(user, { displayName: displayName }); 
+            onSuccess({ name: displayName, uid: user.uid });
+        } catch (error) {
+            setError("Invalid OTP. Try again.");
+            setLoading(false);
+        }
     };
 
     const handlePartnerLogin = async (e) => { 
@@ -248,8 +279,9 @@ function SecureAuth({ type, onSuccess, onBack }) {
             const partnerData = snapshot.docs[0].data(); 
             if (type === 'restaurant' && partnerData.role !== 'restaurant') throw new Error("Unauthorized"); 
             if (type === 'driver' && partnerData.role !== 'driver') throw new Error("Unauthorized"); 
-            const auth = getAuth(); 
-            if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: partnerData.name }); 
+            // Mock auth for partner
+            const auth = getAuth();
+            if(!auth.currentUser) await signInAnonymously(auth); // Fallback for partner login session
             onSuccess(partnerData); 
         } catch (err) { setError(err.message); setLoading(false); } 
     };
@@ -269,29 +301,34 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  </div>
 
                  {type === 'customer' ? ( 
-                    step === 1 ? ( 
-                        <form onSubmit={handleSendOTP}>
-                            {isSignup && (
-                                <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
-                            )}
-                            <input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Phone Number" required />
-                            {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
-                            <button className="btn btn-primary">{loading?'Sending...':'Get OTP'}</button>
-                            
-                            <div style={{marginTop: 16, textAlign: 'center'}}>
-                                <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="btn-link">
-                                    {isSignup ? "Already have an account? Login" : "New here? Create Account"}
-                                </button>
-                            </div>
-                        </form> 
-                    ) : ( 
-                        <form onSubmit={handleVerifyOTP}>
-                            <input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="OTP (1234)" required />
-                            {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
-                            <button className="btn btn-primary">Verify & {isSignup ? 'Register' : 'Login'}</button>
-                            <button type="button" onClick={()=>setStep(1)} className="btn-link" style={{marginTop:10, display:'block', width:'100%'}}>Change Number</button>
-                        </form> 
-                    ) 
+                    <>
+                        {/* Hidden Recaptcha Container */}
+                        <div id="recaptcha-container"></div>
+                        
+                        {step === 1 ? ( 
+                            <form onSubmit={handleSendOTP}>
+                                {isSignup && (
+                                    <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
+                                )}
+                                <input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Phone (+91...)" required />
+                                {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
+                                <button className="btn btn-primary">{loading?'Sending OTP...':'Get OTP'}</button>
+                                
+                                <div style={{marginTop: 16, textAlign: 'center'}}>
+                                    <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="btn-link">
+                                        {isSignup ? "Already have an account? Login" : "New here? Create Account"}
+                                    </button>
+                                </div>
+                            </form> 
+                        ) : ( 
+                            <form onSubmit={handleVerifyOTP}>
+                                <input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Enter SMS Code" required />
+                                {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
+                                <button className="btn btn-primary">{loading?'Verifying...':'Verify'}</button>
+                                <button type="button" onClick={()=>setStep(1)} className="btn-link" style={{marginTop:10, display:'block', width:'100%'}}>Change Number</button>
+                            </form> 
+                        )}
+                    </>
                  ) : ( 
                     <form onSubmit={handlePartnerLogin}>
                         <input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required />
@@ -307,16 +344,21 @@ function SecureAuth({ type, onSuccess, onBack }) {
 
 // --- PORTALS ---
 function CustomerPortal({ user, cart, setCart, onBack }) {
-    const [view, setView] = useState('home'); const [isLoggedIn, setIsLoggedIn] = useState(false); const [selectedRestaurant, setSelectedRestaurant] = useState(null); const [activeOrder, setActiveOrder] = useState(null); const [deliveryAddress, setDeliveryAddress] = useState(''); const [paymentMethod, setPaymentMethod] = useState('upi'); 
+    const [view, setView] = useState('home'); const [selectedRestaurant, setSelectedRestaurant] = useState(null); const [activeOrder, setActiveOrder] = useState(null); const [deliveryAddress, setDeliveryAddress] = useState(''); const [paymentMethod, setPaymentMethod] = useState('upi'); 
     const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
     const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
 
+    // Only show login screen if user is NOT signed in
+    if (!user || user.isAnonymous) return <SecureAuth type="customer" onSuccess={(u) => {}} onBack={onBack} />;
+
+    // ... (Rest of Customer Portal is same logic, just render) ...
+    // Since I cannot repeat infinite code, I assume the rendering logic below:
+    
+    // Watch active order
     useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
     const placeOrder = async () => { if (!deliveryAddress) { alert("Address required"); return; } const order = { items: cart, total: grandTotal, restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: user.displayName || 'Customer', address: deliveryAddress, driverId: null, paymentMethod: paymentMethod }; const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); };
     const addToCart = useCallback((item, rId) => { setCart(p => { if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; } const ex = p.find(i=>i.id===item.id); return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}]; }); }, []);
-
-    if (!isLoggedIn) return <SecureAuth type="customer" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
 
     return (
         <div>
