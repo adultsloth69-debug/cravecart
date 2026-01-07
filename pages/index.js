@@ -5,12 +5,11 @@ import {
   CheckCircle, Utensils, ArrowLeft, X, CreditCard, Bike, 
   Package, Home, Navigation, DollarSign, Activity, BarChart3,
   Briefcase, ChevronRight, LogOut, ShieldCheck, Globe, Menu,
-  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote
+  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote, Mail
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
-  getAuth, signInAnonymously, onAuthStateChanged, 
-  updateProfile, signInWithCustomToken, RecaptchaVerifier, signInWithPhoneNumber 
+  getAuth, onAuthStateChanged, updateProfile, signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously 
 } from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, onSnapshot, 
@@ -39,7 +38,7 @@ try {
     initError = e.message;
 }
 
-// --- 2. CSS STYLES (Standard CSS) ---
+// --- 2. CSS STYLES ---
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   body { background-color: #f8f9fa; color: #333; padding-bottom: 80px; }
@@ -55,10 +54,10 @@ const cssStyles = `
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
+  .btn-google { background: #4285F4; color: white; box-shadow: 0 4px 10px rgba(66, 133, 244, 0.2); }
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .btn-link { background: none; border: none; color: #e65100; font-weight: bold; cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
   .input:focus { border-color: #e65100; }
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
@@ -187,83 +186,26 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH COMPONENT (WITH FALLBACK) ---
+// --- SECURE AUTH COMPONENT (GOOGLE LOGIN) ---
 function SecureAuth({ type, onSuccess, onBack }) {
-    const [step, setStep] = useState(1);
-    const [isSignup, setIsSignup] = useState(false);
-    const [name, setName] = useState('');
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
     const [error, setError] = useState(''); 
     const [loading, setLoading] = useState(false);
-    const [fallbackCode, setFallbackCode] = useState(null); // Used if Real SMS fails
     const db = getFirestore(); 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    // Initialize invisible recaptcha
-    useEffect(() => {
-        if (type === 'customer' && !window.recaptchaVerifier) {
-            try {
-                window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
-            } catch(e){}
-        }
-    }, [type]);
-
-    const handleSendOTP = async (e) => { 
-        e.preventDefault(); 
-        if(isSignup && !name.trim()) { setError("Name is required"); return; }
-        setLoading(true); 
+    const handleGoogleLogin = async () => {
+        setLoading(true);
         setError("");
-
+        const provider = new GoogleAuthProvider();
         try {
-            const appVerifier = window.recaptchaVerifier;
-            const formattedPhone = identifier.includes('+') ? identifier : `+91${identifier}`;
-            const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-            window.confirmationResult = confirmationResult;
-            setStep(2);
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            onSuccess({ name: user.displayName, uid: user.uid });
         } catch (error) {
             console.error(error);
-            // --- FALLBACK LOGIC ---
-            // If Firebase fails (Domain not whitelisted, etc), we use Mock Mode
-            // This ensures the user can ALWAYS log in during a demo.
-            const mockOTP = Math.floor(100000 + Math.random() * 900000).toString();
-            setFallbackCode(mockOTP);
-            alert(`⚠️ SMS Service Busy (Demo Mode).\n\nYour Verification Code is: ${mockOTP}\n\nPlease enter this to login.`);
-            setStep(2);
-        }
-        setLoading(false);
-    };
-
-    const handleVerifyOTP = async (e) => { 
-        e.preventDefault(); 
-        setLoading(true); 
-        
-        // 1. Try Fallback Code (If we used Mock Mode)
-        if (fallbackCode) {
-            if (secret === fallbackCode) {
-                // Manually sign them in anonymously but with a Name
-                await signInAnonymously(auth);
-                const user = auth.currentUser;
-                const displayName = isSignup ? name : `User ${identifier.slice(-4)}`;
-                await updateProfile(user, { displayName: displayName });
-                onSuccess({ name: displayName, uid: user.uid });
-                return;
-            } else {
-                setError("Invalid Code. Check the alert box.");
-                setLoading(false);
-                return;
-            }
-        }
-
-        // 2. Try Real Firebase Verification
-        try {
-            const result = await window.confirmationResult.confirm(secret);
-            const user = result.user;
-            const displayName = isSignup ? name : (user.displayName || `User ${identifier.slice(-4)}`);
-            await updateProfile(user, { displayName: displayName }); 
-            onSuccess({ name: displayName, uid: user.uid });
-        } catch (error) {
-            setError("Invalid OTP. Try again.");
+            setError("Google Login Failed: " + error.message);
             setLoading(false);
         }
     };
@@ -293,42 +235,18 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  <button onClick={onBack} style={{position:'absolute', top:16, right:16, border:'none', background:'none', cursor:'pointer'}}><X size={24} color="#999"/></button>
                  
                  <div className="text-center" style={{marginBottom: 24}}>
-                     <h2>
-                         {type === 'customer' 
-                            ? (isSignup ? 'Create Account' : 'Welcome Back') 
-                            : 'Secure Login'}
-                     </h2>
-                     <p className="text-gray">{type === 'customer' ? 'Enter details below' : 'Enter Credentials'}</p>
+                     <h2>{type === 'customer' ? 'Sign In' : 'Partner Login'}</h2>
+                     <p className="text-gray">{type === 'customer' ? 'Secure login to place orders' : 'Enter credentials'}</p>
                  </div>
 
                  {type === 'customer' ? ( 
-                    <>
-                        <div id="recaptcha-container"></div>
-                        {step === 1 ? ( 
-                            <form onSubmit={handleSendOTP}>
-                                {isSignup && (
-                                    <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
-                                )}
-                                <input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Phone (+91...)" required />
-                                {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
-                                <button className="btn btn-primary">{loading?'Processing...':'Get OTP'}</button>
-                                
-                                <div style={{marginTop: 16, textAlign: 'center'}}>
-                                    <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="btn-link">
-                                        {isSignup ? "Already have an account? Login" : "New here? Create Account"}
-                                    </button>
-                                </div>
-                            </form> 
-                        ) : ( 
-                            <form onSubmit={handleVerifyOTP}>
-                                <input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Enter Code" required />
-                                {fallbackCode && <p style={{fontSize:'0.8rem', color:'#666', marginBottom:10}}>Test Code: <b>{fallbackCode}</b></p>}
-                                {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
-                                <button className="btn btn-primary">{loading?'Verifying...':'Verify'}</button>
-                                <button type="button" onClick={()=>setStep(1)} className="btn-link" style={{marginTop:10, display:'block', width:'100%'}}>Change Number</button>
-                            </form> 
-                        )}
-                    </>
+                    <div className="text-center">
+                        {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
+                        <button onClick={handleGoogleLogin} className="btn btn-google" style={{marginBottom: 16}}>
+                            {loading ? 'Connecting...' : 'Continue with Google'}
+                        </button>
+                        <p className="text-gray" style={{fontSize: '0.8rem'}}>No password required. Secure & Instant.</p>
+                    </div>
                  ) : ( 
                     <form onSubmit={handlePartnerLogin}>
                         <input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required />
@@ -344,16 +262,17 @@ function SecureAuth({ type, onSuccess, onBack }) {
 
 // --- PORTALS ---
 function CustomerPortal({ user, cart, setCart, onBack }) {
-    const [view, setView] = useState('home'); const [isLoggedIn, setIsLoggedIn] = useState(false); const [selectedRestaurant, setSelectedRestaurant] = useState(null); const [activeOrder, setActiveOrder] = useState(null); const [deliveryAddress, setDeliveryAddress] = useState(''); const [paymentMethod, setPaymentMethod] = useState('upi'); 
+    const [view, setView] = useState('home'); const [selectedRestaurant, setSelectedRestaurant] = useState(null); const [activeOrder, setActiveOrder] = useState(null); const [deliveryAddress, setDeliveryAddress] = useState(''); const [paymentMethod, setPaymentMethod] = useState('upi'); 
     const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
     const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
 
+    // Only show login screen if user is NOT signed in or is Anonymous
+    if (!user || user.isAnonymous) return <SecureAuth type="customer" onSuccess={(u) => {}} onBack={onBack} />;
+
     useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
     const placeOrder = async () => { if (!deliveryAddress) { alert("Address required"); return; } const order = { items: cart, total: grandTotal, restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: user.displayName || 'Customer', address: deliveryAddress, driverId: null, paymentMethod: paymentMethod }; const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); };
     const addToCart = useCallback((item, rId) => { setCart(p => { if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; } const ex = p.find(i=>i.id===item.id); return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}]; }); }, []);
-
-    if (!isLoggedIn) return <SecureAuth type="customer" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
 
     return (
         <div>
