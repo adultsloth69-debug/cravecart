@@ -17,7 +17,7 @@ import {
   orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc 
 } from 'firebase/firestore';
 
-// --- SAFE INITIALIZATION & DEBUGGING ---
+// --- 1. FIREBASE CONFIGURATION (Safe Mode) ---
 let app, auth, db;
 let initError = null;
 
@@ -31,11 +31,9 @@ const firebaseConfig = {
 };
 
 try {
-    // Check if keys exist
     if (!firebaseConfig.apiKey) {
-        throw new Error("Missing Firebase Configuration. Please check Vercel Environment Variables.");
+        throw new Error("Missing Firebase Configuration in Vercel.");
     }
-    // Initialize Firebase
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
     db = getFirestore(app);
@@ -43,34 +41,69 @@ try {
     initError = e.message;
 }
 
-// --- STATIC DATA (INR) ---
-const MOCK_RESTAURANTS = [
-  {
-    id: 1, name: "Burger King", cuisine: "American • Burgers", rating: 4.2, time: "25-30 min", price: "₹200 for one",
-    image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?auto=format&fit=crop&w=800&q=80",
-    menu: [
-      { id: 101, name: "Whopper Meal", price: 349, desc: "Flame-grilled beef patty, sesame bun, fries, drink.", isVeg: false },
-      { id: 102, name: "Chicken Royale", price: 229, desc: "Crispy chicken breast with lettuce and mayo.", isVeg: false },
-      { id: 103, name: "Veggie Bean Burger", price: 169, desc: "Spicy bean patty with fresh veggies.", isVeg: true },
-    ]
-  },
-  {
-    id: 2, name: "Pizza Hut", cuisine: "Italian • Pizza", rating: 4.5, time: "35-40 min", price: "₹300 for one",
-    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
-    menu: [
-      { id: 201, name: "Pepperoni Feast", price: 499, desc: "Double pepperoni and extra mozzarella.", isVeg: false },
-      { id: 202, name: "Veggie Supreme", price: 399, desc: "Onions, peppers, mushrooms, sweetcorn.", isVeg: true },
-      { id: 203, name: "Garlic Bread", price: 149, desc: "Classic crunchy garlic bread.", isVeg: true },
-    ]
-  },
-  {
-    id: 3, name: "Sushi Master", cuisine: "Japanese • Sushi", rating: 4.8, time: "40-50 min", price: "₹800 for one",
-    image: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80",
-    menu: [
-      { id: 301, name: "Salmon Platter", price: 899, desc: "12 pcs fresh salmon nigiri and maki.", isVeg: false },
-      { id: 302, name: "Avocado Maki", price: 349, desc: "6 pcs fresh avocado roll.", isVeg: true },
-    ]
+// --- 2. "NORMAL" CSS STYLES ---
+const cssStyles = `
+  /* Global Resets */
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { background-color: #f8f9fa; color: #333; padding-bottom: 80px; }
+  
+  /* Utilities */
+  .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .text-center { text-align: center; }
+  .flex { display: flex; align-items: center; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .hidden { display: none; }
+  
+  /* Colors & Text */
+  .text-orange { color: #e65100; }
+  .text-green { color: #2e7d32; }
+  .text-gray { color: #666; font-size: 0.9rem; }
+  .font-bold { font-weight: 700; }
+  
+  /* Buttons */
+  .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: #e65100; color: white; box-shadow: 0 4px 10px rgba(230, 81, 0, 0.2); }
+  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
+  .btn-danger { color: #d32f2f; background: transparent; }
+  .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
+  
+  /* Inputs */
+  .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
+  .input:focus { border-color: #e65100; }
+  
+  /* Cards */
+  .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
+  .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+  
+  /* Headers */
+  .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
+  .logo { font-size: 1.5rem; font-weight: 800; color: #111; display: flex; align-items: center; gap: 8px; }
+  
+  /* Specific Elements */
+  .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+  .badge-orange { background: #fff3e0; color: #e65100; }
+  .badge-green { background: #e8f5e9; color: #2e7d32; }
+  
+  .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
+  .portal-card:hover { border-color: #e65100; transform: translateY(-2px); }
+  
+  /* Modal */
+  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  
+  /* Mobile Responsive */
+  @media (min-width: 768px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
   }
+`;
+
+// --- STATIC DATA ---
+const MOCK_RESTAURANTS = [
+  { id: 1, name: "Burger King", cuisine: "American • Burgers", rating: 4.2, time: "25-30 min", price: "₹200 for one", image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?auto=format&fit=crop&w=800&q=80", menu: [{ id: 101, name: "Whopper Meal", price: 349, desc: "Burger, fries, drink.", isVeg: false }] },
+  { id: 2, name: "Pizza Hut", cuisine: "Italian • Pizza", rating: 4.5, time: "35-40 min", price: "₹300 for one", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80", menu: [{ id: 201, name: "Pepperoni Feast", price: 499, desc: "Double pepperoni pizza.", isVeg: false }] }
 ];
 
 // --- APP COMPONENT ---
@@ -80,10 +113,8 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Optimized Auth Init
   useEffect(() => {
     if (initError) { setLoading(false); return; }
-    
     const initAuth = async () => {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
             await signInWithCustomToken(auth, __initial_auth_token);
@@ -96,679 +127,265 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogout = useCallback(async () => {
-      setCart([]);
-      setActiveApp('landing'); 
-  }, []);
-
-  const goBackToHome = useCallback(() => {
-      setActiveApp('landing');
-  }, []);
-
-  // Memoized Cart Count
+  const handleLogout = useCallback(() => { setCart([]); setActiveApp('landing'); }, []);
+  const goBackToHome = useCallback(() => { setActiveApp('landing'); }, []);
   const cartCount = useMemo(() => cart.reduce((a,b)=>a+b.qty,0), [cart]);
 
-  // If Firebase failed, show the error on screen
-  if (initError) {
-      return (
-          <div style={{ padding: 40, fontFamily: 'sans-serif', color: 'red' }}>
-              <h1>App Crashed</h1>
-              <p>The app could not start because:</p>
-              <pre style={{ background: '#eee', padding: 10, borderRadius: 5 }}>{initError}</pre>
-              <br/>
-              <h3>How to fix in Vercel:</h3>
-              <ol>
-                  <li>Go to your Vercel Dashboard</li>
-                  <li>Click Settings - Environment Variables</li>
-                  <li>Add NEXT_PUBLIC_FIREBASE_API_KEY etc.</li>
-                  <li>Redeploy the app</li>
-              </ol>
-          </div>
-      );
-  }
+  if (initError) return <div className="container" style={{color:'red'}}><h1>Error</h1><p>{initError}</p></div>;
+  if (loading) return <div className="container text-center" style={{marginTop: 100}}>Loading Platform...</div>;
 
-  if (loading) return <div className="h-screen w-full flex items-center justify-center bg-white text-orange-600 font-bold animate-pulse">Loading Platform...</div>;
-
-  // --- 1. LANDING PAGE ---
-  if (activeApp === 'landing') {
-      return (
-          <div className="min-h-screen bg-white font-sans text-gray-800 animate-fade-in will-change-transform">
-              <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 transition-all duration-300">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                      <div className="flex justify-between items-center h-16">
-                          <div className="flex items-center gap-2">
-                              <div className="bg-orange-600 p-2 rounded-lg shadow-lg shadow-orange-200"><Utensils className="w-6 h-6 text-white" /></div>
-                              <span className="text-2xl font-bold tracking-tighter text-gray-900">CraveCart</span>
-                          </div>
-                          <div className="flex items-center gap-4">
-                              <button onClick={() => setActiveApp('admin')} className="text-sm font-medium text-gray-500 hover:text-gray-900 hidden sm:block transition-colors">Admin Login</button>
-                              <button onClick={() => setActiveApp('customer')} className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-full font-bold transition shadow-lg shadow-orange-200 hover:shadow-orange-300 transform hover:-translate-y-0.5">Order Food</button>
-                          </div>
-                      </div>
-                  </div>
-              </header>
-
-              <div className="relative overflow-hidden pt-16 pb-32 bg-gray-50">
-                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                      <div className="text-center max-w-3xl mx-auto">
-                          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight mb-6">
-                              One Platform, <br/><span className="text-orange-600">Total Control.</span>
-                          </h1>
-                          <p className="text-xl text-gray-500 mb-8">
-                              The complete ecosystem for Customers, Restaurants, Drivers, and Business Owners.
-                          </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-                          <PortalCard icon={ChefHat} title="Restaurant Portal" desc="Manage orders & menu" color="orange" onClick={() => setActiveApp('restaurant')} />
-                          <PortalCard icon={Bike} title="Driver App" desc="Accept delivery jobs" color="blue" onClick={() => setActiveApp('driver')} />
-                          <PortalCard icon={ShieldCheck} title="Admin Dashboard" desc="Manage partners & revenue" color="purple" onClick={() => setActiveApp('admin')} />
-                      </div>
-                  </div>
-              </div>
-          </div>
-      );
-  }
-
-  // --- 2. RENDER ACTIVE APP ---
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20 md:pb-0 relative animate-fade-in will-change-transform">
-      <PortalHeader activeApp={activeApp} user={user} onLogout={handleLogout} cartCount={cartCount} />
+    <>
+      <Head><style>{cssStyles}</style></Head>
       
-      <main className="max-w-6xl mx-auto p-4 md:p-8">
-          {activeApp === 'customer' && <CustomerPortal user={user} cart={cart} setCart={setCart} onBack={goBackToHome} />}
-          {activeApp === 'restaurant' && <RestaurantPortal user={user} onBack={goBackToHome} />}
-          {activeApp === 'driver' && <DriverPortal user={user} onBack={goBackToHome} />}
-          {activeApp === 'admin' && <AdminPortal user={user} onBack={goBackToHome} />}
-      </main>
-    </div>
+      {activeApp === 'landing' ? (
+          <LandingPage setApp={setActiveApp} />
+      ) : (
+          <div>
+              <PortalHeader activeApp={activeApp} user={user} onLogout={handleLogout} cartCount={cartCount} />
+              <main className="container">
+                  {activeApp === 'customer' && <CustomerPortal user={user} cart={cart} setCart={setCart} onBack={goBackToHome} />}
+                  {activeApp === 'restaurant' && <RestaurantPortal user={user} onBack={goBackToHome} />}
+                  {activeApp === 'driver' && <DriverPortal user={user} onBack={goBackToHome} />}
+                  {activeApp === 'admin' && <AdminPortal user={user} onBack={goBackToHome} />}
+              </main>
+          </div>
+      )}
+    </>
   );
 }
 
-// Memoized Card Component
-const PortalCard = React.memo(({ icon: Icon, title, desc, color, onClick }) => {
-    const colors = {
-        orange: 'bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white',
-        blue: 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white',
-        purple: 'bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white',
-    };
+// --- COMPONENTS ---
+
+function LandingPage({ setApp }) {
     return (
-        <button onClick={onClick} className="group p-6 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left w-full">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors duration-300 ${colors[color]}`}>
-                <Icon className="w-6 h-6" />
+        <div style={{ background: 'white', minHeight: '100vh' }}>
+            <div className="header flex-between">
+                <div className="logo"><Utensils color="#e65100"/> CraveCart</div>
+                <div className="flex" style={{gap:10}}>
+                    <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
+                    <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order Food</button>
+                </div>
             </div>
-            <h3 className="font-bold text-lg text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-500">{desc}</p>
-        </button>
+            <div className="container text-center" style={{paddingTop: 60, paddingBottom: 100}}>
+                <h1 style={{fontSize: '3rem', marginBottom: 16}}>Delicious Food,<br/><span className="text-orange">Delivered.</span></h1>
+                <p className="text-gray" style={{fontSize: '1.2rem', marginBottom: 40}}>The complete ecosystem for Customers, Restaurants, Drivers, and Owners.</p>
+                
+                <div className="grid grid-3">
+                    <button onClick={() => setApp('restaurant')} className="portal-card card">
+                        <div className="badge-orange" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
+                        <h3>Restaurant Partner</h3>
+                        <p className="text-gray">Manage orders & menu</p>
+                    </button>
+                    <button onClick={() => setApp('driver')} className="portal-card card">
+                        <div className="badge-green" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><Bike size={24}/></div>
+                        <h3>Delivery Fleet</h3>
+                        <p className="text-gray">Accept jobs nearby</p>
+                    </button>
+                    <button onClick={() => setApp('admin')} className="portal-card card">
+                        <div style={{background: '#f3e5f5', color:'#7b1fa2', width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ShieldCheck size={24}/></div>
+                        <h3>Admin Console</h3>
+                        <p className="text-gray">Business revenue stats</p>
+                    </button>
+                </div>
+            </div>
+        </div>
     )
-});
+}
 
-// Memoized Header Component
-const PortalHeader = React.memo(({ activeApp, user, onLogout, cartCount }) => {
-    const config = useMemo(() => ({
-        customer: { bg: 'bg-white', text: 'text-gray-900', border: 'border-gray-200', icon: Utensils, label: 'CraveCart', accent: 'bg-orange-600' },
-        restaurant: { bg: 'bg-gray-900', text: 'text-white', border: 'border-gray-800', icon: ChefHat, label: 'Partner Portal', accent: 'bg-green-500' },
-        driver: { bg: 'bg-blue-600', text: 'text-white', border: 'border-blue-700', icon: Bike, label: 'Driver App', accent: 'bg-white/20' },
-        admin: { bg: 'bg-gray-900', text: 'text-white', border: 'border-gray-800', icon: ShieldCheck, label: 'Admin Console', accent: 'bg-purple-600' }
-    }[activeApp]), [activeApp]);
-
+function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     return (
-        <nav className={`sticky top-0 z-50 shadow-sm border-b px-6 py-4 flex justify-between items-center transition-colors duration-300 ${config.bg} ${config.border} ${config.text}`}>
-            <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${config.accent}`}><config.icon className="w-5 h-5 text-white" /></div>
-                <span className="text-xl font-bold tracking-tight">{config.label}</span>
+        <div className="header flex-between">
+            <div className="logo" style={{fontSize: '1.2rem'}}>
+                {activeApp === 'customer' ? <ShoppingBag color="#e65100"/> : activeApp === 'restaurant' ? <ChefHat color="#2e7d32"/> : activeApp === 'driver' ? <Bike color="#1565c0"/> : <ShieldCheck/>}
+                <span style={{textTransform:'capitalize'}}>{activeApp} Portal</span>
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex" style={{gap: 16}}>
                 {activeApp === 'customer' && (
-                    <div className="relative cursor-pointer hover:opacity-75 transition">
-                        <ShoppingBag className="w-6 h-6" />
-                        {cartCount > 0 && <span className="absolute -top-2 -right-2 bg-orange-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">{cartCount}</span>}
+                    <div style={{position:'relative'}}>
+                        <ShoppingBag size={24}/>
+                        {cartCount > 0 && <span style={{position:'absolute', top:-5, right:-5, background:'red', color:'white', borderRadius:'50%', width:18, height:18, fontSize:10, display:'flex', alignItems:'center', justifyContent:'center'}}>{cartCount}</span>}
                     </div>
                 )}
-                <button onClick={onLogout} className="text-sm opacity-70 hover:opacity-100 flex items-center gap-1 font-medium ml-2 transition-opacity"><LogOut className="w-4 h-4" /> Exit</button>
+                <button onClick={onLogout} className="btn-danger flex" style={{gap: 4}}><LogOut size={16}/> Exit</button>
             </div>
-        </nav>
-    );
-});
+        </div>
+    )
+}
 
-// --- SECURE AUTH COMPONENT ---
-const SecureAuth = React.memo(({ type, onSuccess, onBack }) => {
+function SecureAuth({ type, onSuccess, onBack }) {
     const [step, setStep] = useState(1);
-    const [identifier, setIdentifier] = useState(''); 
-    const [secret, setSecret] = useState(''); 
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const db = getFirestore();
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [identifier, setIdentifier] = useState(''); const [secret, setSecret] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
+    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    const handleSendOTP = useCallback((e) => {
-        e.preventDefault();
-        setLoading(true);
-        setTimeout(() => { setLoading(false); setStep(2); }, 800);
-    }, []);
-
-    const handleVerifyOTP = async (e) => {
-        e.preventDefault();
-        if (secret !== '1234') { setError('Invalid OTP. Use 1234'); return; }
-        
-        setLoading(true);
-        const auth = getAuth();
-        if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: `User ${identifier.slice(-4)}` });
-        onSuccess({ name: `User ${identifier}` });
-    };
-
-    const handlePartnerLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            if (type === 'admin') {
-                if (identifier === 'admin' && secret === 'admin123') {
-                    onSuccess({ name: 'Super Admin', role: 'admin' });
-                    return;
-                } else {
-                    throw new Error("Invalid Admin Credentials. Try admin/admin123");
-                }
-            }
-
-            const q = query(
-                collection(db, 'artifacts', appId, 'public', 'data', 'partners'),
-                where('username', '==', identifier),
-                where('password', '==', secret)
-            );
-            
-            const snapshot = await getDocs(q);
-            
-            if (snapshot.empty) { throw new Error("Invalid credentials."); }
-
-            const partnerData = snapshot.docs[0].data();
-
-            if (type === 'restaurant' && partnerData.role !== 'restaurant') { throw new Error("This account is not authorized for Restaurant Portal."); }
-            if (type === 'driver' && partnerData.role !== 'driver') { throw new Error("This account is not authorized for Driver App."); }
-            
-            const auth = getAuth();
-            if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: partnerData.name });
-            
-            onSuccess(partnerData);
-
-        } catch (err) {
-            setError(err.message);
-            setLoading(false);
-        }
-    };
+    const handleSendOTP = (e) => { e.preventDefault(); setLoading(true); setTimeout(() => { setLoading(false); setStep(2); }, 800); };
+    const handleVerifyOTP = async (e) => { e.preventDefault(); if (secret !== '1234') { setError('Invalid OTP. Use 1234'); return; } setLoading(true); const auth = getAuth(); if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: `User ${identifier.slice(-4)}` }); onSuccess({ name: `User ${identifier}` }); };
+    const handlePartnerLogin = async (e) => { e.preventDefault(); setError(''); setLoading(true); try { if (type === 'admin') { if (identifier === 'admin' && secret === 'admin123') { onSuccess({ name: 'Super Admin', role: 'admin' }); return; } else { throw new Error("Invalid Admin Credentials. Try admin/admin123"); } } const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), where('username', '==', identifier), where('password', '==', secret)); const snapshot = await getDocs(q); if (snapshot.empty) throw new Error("Invalid credentials."); const partnerData = snapshot.docs[0].data(); if (type === 'restaurant' && partnerData.role !== 'restaurant') throw new Error("Unauthorized"); if (type === 'driver' && partnerData.role !== 'driver') throw new Error("Unauthorized"); const auth = getAuth(); if(auth.currentUser) await updateProfile(auth.currentUser, { displayName: partnerData.name }); onSuccess(partnerData); } catch (err) { setError(err.message); setLoading(false); } };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-             <div className="bg-white w-full max-w-sm p-8 rounded-3xl shadow-2xl relative overflow-hidden transform transition-all">
-                 
-                 <button onClick={onBack} className="absolute top-4 right-4 text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors" title="Back to Home"><X className="w-5 h-5"/></button>
-
-                 <div className="text-center mb-8">
-                     <div className={`w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 ${type==='customer'?'bg-orange-100 text-orange-600':type==='partner'?'bg-blue-100 text-blue-600':'bg-purple-100 text-purple-600'}`}>
-                         {type==='customer' ? <Smartphone className="w-8 h-8"/> : <Lock className="w-8 h-8"/>}
-                     </div>
-                     <h2 className="text-2xl font-bold text-gray-900">{type === 'customer' ? 'Login / Sign up' : 'Secure Login'}</h2>
-                     <p className="text-gray-500 text-sm">{type === 'customer' ? 'Enter phone to receive OTP' : 'Enter your provided credentials'} </p>
+        <div className="modal-overlay">
+             <div className="modal">
+                 <button onClick={onBack} style={{position:'absolute', top:16, right:16, border:'none', background:'none', cursor:'pointer'}}><X size={24} color="#999"/></button>
+                 <div className="text-center" style={{marginBottom: 24}}>
+                     <h2>{type === 'customer' ? 'Login' : 'Secure Login'}</h2>
+                     <p className="text-gray">{type === 'customer' ? 'Enter Phone Number' : 'Enter Credentials'}</p>
                  </div>
-
-                 {type === 'customer' && (
-                     <>
-                        {step === 1 ? (
-                            <form onSubmit={handleSendOTP} className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Mobile Number</label>
-                                    <div className="relative mt-1">
-                                        <Phone className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"/>
-                                        <input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="w-full pl-10 p-3 border rounded-xl font-bold text-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all" placeholder="+1 555 000 0000" required />
-                                    </div>
-                                </div>
-                                <button disabled={loading} className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-orange-700 transition flex justify-center transform active:scale-95">
-                                    {loading ? 'Sending...' : 'Get OTP'}
-                                </button>
-                            </form>
-                        ) : (
-                            <form onSubmit={handleVerifyOTP} className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Enter OTP</label>
-                                    <div className="relative mt-1">
-                                        <MessageSquare className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"/>
-                                        <input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="w-full pl-10 p-3 border rounded-xl font-bold text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-green-500 transition-all" placeholder="1234" maxLength={4} required />
-                                    </div>
-                                    <p className="text-xs text-gray-400 mt-2">Use code <b>1234</b> for demo</p>
-                                </div>
-                                {error && <p className="text-red-500 text-sm font-bold text-center">{error}</p>}
-                                <button disabled={loading} className="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition flex justify-center transform active:scale-95">
-                                    {loading ? 'Verifying...' : 'Verify & Login'}
-                                </button>
-                                <button type="button" onClick={()=>setStep(1)} className="w-full text-center text-gray-500 text-sm hover:underline">Change Number</button>
-                            </form>
-                        )}
-                     </>
-                 )}
-
-                 {type !== 'customer' && (
-                     <form onSubmit={handlePartnerLogin} className="space-y-4">
-                         <div>
-                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Username</label>
-                             <div className="relative mt-1">
-                                 <User className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"/>
-                                 <input type="text" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="w-full pl-10 p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all" placeholder="Username" required />
-                             </div>
-                         </div>
-                         <div>
-                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Password</label>
-                             <div className="relative mt-1">
-                                 <Key className="absolute left-3 top-3.5 w-5 h-5 text-gray-400"/>
-                                 <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="w-full pl-10 p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 transition-all" placeholder="••••••••" required />
-                             </div>
-                         </div>
-                         {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm font-bold text-center border border-red-100">{error}</div>}
-                         <button disabled={loading} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition flex justify-center transform active:scale-95">
-                             {loading ? 'Authenticating...' : 'Secure Login'}
-                         </button>
-                         {type === 'admin' && <p className="text-xs text-gray-400 text-center">Default: admin / admin123</p>}
-                     </form>
-                 )}
+                 {type === 'customer' ? ( step === 1 ? ( <form onSubmit={handleSendOTP}><input type="tel" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Phone Number" required /><button className="btn btn-primary">{loading?'Sending...':'Get OTP'}</button></form> ) : ( <form onSubmit={handleVerifyOTP}><input type="text" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="OTP (1234)" required /><button className="btn btn-primary">Verify</button></form> ) ) : ( <form onSubmit={handlePartnerLogin}><input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required /><input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password" required />{error && <p style={{color:'red', marginBottom:10}}>{error}</p>}<button className="btn btn-primary">{loading?'Auth...':'Login'}</button></form> )}
              </div>
         </div>
     );
-});
+}
 
-// --- PORTAL 1: CUSTOMER ---
+// --- PORTALS ---
 function CustomerPortal({ user, cart, setCart, onBack }) {
-    const [view, setView] = useState('home'); 
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-    const [activeOrder, setActiveOrder] = useState(null);
-    const [deliveryAddress, setDeliveryAddress] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi' | 'cod'
-    const db = getFirestore();
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [view, setView] = useState('home'); const [isLoggedIn, setIsLoggedIn] = useState(false); const [selectedRestaurant, setSelectedRestaurant] = useState(null); const [activeOrder, setActiveOrder] = useState(null); const [deliveryAddress, setDeliveryAddress] = useState(''); const [paymentMethod, setPaymentMethod] = useState('upi'); 
+    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
+    const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
 
-    // Memoize Cart Calculations
-    const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => {
-        const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
-        const deliveryFee = itemTotal > 500 ? 0 : 40; 
-        const tax = itemTotal * 0.05; 
-        return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax };
-    }, [cart]);
-
-    // QR Code URL (Generates real QR for UPI)
-    const upiId = "pritamanime-1@okhdfcbank";
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
-
-    useEffect(() => {
-        if (!activeOrder?.id) return;
-        const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => {
-             if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()}));
-        });
-        return () => unsub();
-    }, [activeOrder?.id]);
-
-    const placeOrder = async () => {
-        if (!deliveryAddress) { alert("Please enter delivery address"); return; }
-        
-        const order = { 
-            items: cart, total: grandTotal, 
-            restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, 
-            userId: user.uid, status: 'placed', createdAt: serverTimestamp(), 
-            customerName: user.displayName || 'Customer', address: deliveryAddress, driverId: null,
-            paymentMethod: paymentMethod 
-        };
-        const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order);
-        setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking');
-    };
-
-    const addToCart = useCallback((item, rId) => {
-        setCart(p => { 
-            if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; }
-            const ex = p.find(i=>i.id===item.id); 
-            return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}];
-        });
-    }, []);
+    useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
+    const placeOrder = async () => { if (!deliveryAddress) { alert("Address required"); return; } const order = { items: cart, total: grandTotal, restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: user.displayName || 'Customer', address: deliveryAddress, driverId: null, paymentMethod: paymentMethod }; const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); };
+    const addToCart = useCallback((item, rId) => { setCart(p => { if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; } const ex = p.find(i=>i.id===item.id); return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}]; }); }, []);
 
     if (!isLoggedIn) return <SecureAuth type="customer" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
 
     return (
-        <div className="animate-fade-in will-change-transform">
+        <div>
             {view === 'home' && (
                 <>
-                    {activeOrder && (
-                        <div onClick={() => setView('tracking')} className="bg-blue-600 text-white p-4 rounded-xl shadow-lg mb-6 flex justify-between items-center cursor-pointer hover:bg-blue-700 transition transform hover:scale-[1.01]">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-white/20 p-2 rounded-lg animate-pulse"><Clock className="w-5 h-5"/></div>
-                                <div><div className="font-bold">Order in Progress</div><div className="text-sm opacity-90">{activeOrder.restaurantName} • {activeOrder.status.replace(/_/g, ' ')}</div></div>
-                            </div>
-                            <ChevronRight className="w-5 h-5"/>
-                        </div>
-                    )}
-                    <h2 className="text-2xl font-bold mb-6 text-gray-900">Restaurants Near You</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {activeOrder && (<div onClick={() => setView('tracking')} className="card" style={{background:'#1565c0', color:'white', display:'flex', justifyContent:'space-between', cursor:'pointer'}}><div><b>Order in Progress</b><br/><small>Tap to track</small></div><ChevronRight/></div>)}
+                    <h2 style={{marginBottom: 16}}>Restaurants</h2>
+                    <div className="grid">
                         {MOCK_RESTAURANTS.map(r => (
-                        <div key={r.id} onClick={()=>{setSelectedRestaurant(r);setView('restaurant')}} className="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-xl transition duration-300 overflow-hidden group hover:-translate-y-1">
-                            <div className="relative h-48 overflow-hidden"><img src={r.image} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition duration-700"/><div className="absolute bottom-3 right-3 bg-white px-3 py-1 rounded-full text-xs font-bold shadow-sm">{r.time}</div></div>
-                            <div className="p-5"><h3 className="font-bold text-xl text-gray-900">{r.name}</h3><p className="text-gray-500 text-sm">{r.cuisine}</p></div>
-                        </div>
+                            <div key={r.id} onClick={()=>{setSelectedRestaurant(r);setView('restaurant')}} className="card" style={{padding:0, overflow:'hidden', cursor:'pointer'}}>
+                                <img src={r.image} className="card-img" style={{borderRadius:0, height: 150}} />
+                                <div style={{padding: 16}}>
+                                    <div className="flex-between"><h3>{r.name}</h3><span className="badge badge-green">{r.rating} ★</span></div>
+                                    <p className="text-gray">{r.cuisine} • {r.price}</p>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 </>
             )}
-
             {view === 'restaurant' && selectedRestaurant && (
-                <div className="animate-slide-up will-change-transform">
-                    <button onClick={() => setView('home')} className="mb-6 flex items-center gap-2 text-gray-500 hover:text-orange-600 font-medium transition-colors"><ArrowLeft className="w-4 h-4"/> Back</button>
-                    <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 mb-8 flex gap-8 items-start">
-                        <img src={selectedRestaurant.image} loading="lazy" className="w-24 h-24 rounded-2xl object-cover" />
-                        <div><h1 className="text-3xl font-bold mb-2 text-gray-900">{selectedRestaurant.name}</h1><p className="text-gray-500">{selectedRestaurant.cuisine}</p></div>
-                    </div>
-                    <h2 className="text-2xl font-bold mb-4">Menu</h2>
-                    <div className="grid gap-4">{selectedRestaurant.menu.map(item => (
-                        <div key={item.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex justify-between items-center transition hover:border-orange-200">
-                            <div><h3 className="font-bold text-lg">{item.name}</h3><div className="font-bold text-gray-900">₹{item.price}</div></div>
-                            <button onClick={()=>addToCart(item, selectedRestaurant.id)} className="bg-orange-50 text-orange-600 w-10 h-10 rounded-full flex items-center justify-center transition hover:bg-orange-600 hover:text-white"><Plus className="w-5 h-5"/></button>
-                        </div>
-                    ))}</div>
-                    {cart.length > 0 && <button onClick={()=>setView('cart')} className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md bg-gray-900 text-white p-4 rounded-2xl font-bold shadow-2xl flex justify-between transform transition hover:scale-105"><span>View Cart ({cart.reduce((a,b)=>a+b.qty,0)})</span><span>₹{grandTotal.toFixed(2)}</span></button>}
-                </div>
-            )}
-
-            {view === 'cart' && (
-                <div className="max-w-4xl mx-auto bg-white p-8 rounded-3xl shadow-lg border border-gray-100 animate-slide-up grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <button onClick={() => setView('restaurant')} className="mb-6 flex items-center gap-2 text-gray-500"><ArrowLeft className="w-4 h-4"/> Back</button>
-                        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
-                        <div className="space-y-4 mb-8 bg-gray-50 p-6 rounded-2xl">
-                            {cart.map(i => (<div key={i.id} className="flex justify-between font-bold text-gray-700"><span>{i.qty}x {i.name}</span><span>₹{(i.price*i.qty).toFixed(2)}</span></div>))}
-                            <div className="border-t border-dashed border-gray-300 my-4 pt-4 space-y-2 text-sm text-gray-600">
-                                <div className="flex justify-between"><span>Item Total</span><span>₹{itemTotal.toFixed(2)}</span></div>
-                                <div className="flex justify-between"><span>Delivery Fee</span><span>₹{deliveryFee}</span></div>
-                                <div className="flex justify-between"><span>GST (5%)</span><span>₹{tax.toFixed(2)}</span></div>
-                            </div>
-                            <div className="flex justify-between text-xl font-bold text-gray-900 border-t pt-4"><span>Grand Total</span><span>₹{grandTotal.toFixed(2)}</span></div>
-                        </div>
-                        <div className="mb-6">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Delivery Address</label>
-                            <textarea value={deliveryAddress} onChange={e=>setDeliveryAddress(e.target.value)} placeholder="Full address (House No, Area, City)..." className="w-full mt-2 p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 transition" />
-                        </div>
-                    </div>
-
-                    <div className="bg-gray-50 p-8 rounded-3xl border border-gray-200">
-                        <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><CreditCard className="w-5 h-5"/> Payment Method</h2>
-                        
-                        <div className="space-y-4 mb-8">
-                            <label className={`block p-4 border-2 rounded-xl cursor-pointer transition ${paymentMethod==='upi'?'border-orange-500 bg-orange-50':'border-gray-200 bg-white'}`}>
-                                <div className="flex items-center gap-3">
-                                    <input type="radio" name="pay" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} className="accent-orange-600 w-5 h-5" />
-                                    <div>
-                                        <div className="font-bold text-gray-900 flex items-center gap-2"><QrCode className="w-4 h-4"/> UPI / QR Code</div>
-                                        <div className="text-xs text-gray-500">Scan to pay securely</div>
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label className={`block p-4 border-2 rounded-xl cursor-pointer transition ${paymentMethod==='cod'?'border-green-500 bg-green-50':'border-gray-200 bg-white'}`}>
-                                <div className="flex items-center gap-3">
-                                    <input type="radio" name="pay" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} className="accent-green-600 w-5 h-5" />
-                                    <div>
-                                        <div className="font-bold text-gray-900 flex items-center gap-2"><Banknote className="w-4 h-4"/> Cash on Delivery</div>
-                                        <div className="text-xs text-gray-500">Pay cash to driver</div>
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-
-                        {paymentMethod === 'upi' && (
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 text-center mb-6">
-                                <p className="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wide">Scan with any UPI App</p>
-                                <img src={qrCodeUrl} alt="UPI QR" className="w-48 h-48 mx-auto rounded-lg border-2 border-gray-100 mb-4"/>
-                                <div className="bg-gray-100 py-2 px-4 rounded-lg inline-block">
-                                    <p className="text-xs text-gray-500">UPI ID</p>
-                                    <p className="font-mono font-bold text-gray-800 text-sm select-all">{upiId}</p>
-                                </div>
-                            </div>
-                        )}
-
-                        <button onClick={placeOrder} className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-xl hover:bg-orange-700 transition transform active:scale-95 flex items-center justify-center gap-2">
-                            {paymentMethod === 'upi' ? 'I have Paid' : 'Place Order'} <ChevronRight className="w-5 h-5"/>
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {view === 'tracking' && activeOrder && (
-                <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 animate-slide-up">
-                    <div className="bg-gray-900 text-white p-8 text-center">
-                         <div className="text-5xl font-black mb-2">25 min</div>
-                         <div className="font-bold text-lg capitalize">{activeOrder.status.replace(/_/g, ' ')}</div>
-                    </div>
-                    <div className="p-8">
-                         {activeOrder.driverName ? <div className="bg-green-50 p-4 rounded-2xl border border-green-100 mb-6 flex gap-3 text-green-700 font-bold"><Bike/> {activeOrder.driverName} is delivering</div> : <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6 flex gap-3 text-gray-500">Matching Driver...</div>}
-                         <button onClick={()=>{setActiveOrder(null);setView('home')}} className="w-full border border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition">New Order</button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// --- PORTAL 2: RESTAURANT ---
-function RestaurantPortal({ user, onBack }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [orders, setOrders] = useState([]);
-    const db = getFirestore();
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-    useEffect(() => {
-       const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc'));
-       const unsub = onSnapshot(q, (snapshot) => setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))));
-       return () => unsub();
-    }, []);
-    
-    const update = async (id, s) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status: s });
-    
-    // Memoized filters for performance
-    const newOrders = useMemo(() => orders.filter(o => o.status === 'placed'), [orders]);
-    const activeOrders = useMemo(() => orders.filter(o=>['cooking','out_for_delivery'].includes(o.status)), [orders]);
-
-    if (!isLoggedIn) return <SecureAuth type="restaurant" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
-
-    return (
-        <div className="animate-fade-in grid grid-cols-1 lg:grid-cols-2 gap-8 will-change-transform">
-            <div className="space-y-6">
-                <h2 className="text-2xl font-bold">Incoming Orders {newOrders.length > 0 && <span className="text-red-500">({newOrders.length})</span>}</h2>
-                {newOrders.map(o => (
-                    <div key={o.id} className="bg-white border-l-4 border-orange-500 shadow-sm p-6 rounded-r-xl flex justify-between items-center transition hover:shadow-md">
-                        <div>
-                            <h3 className="text-xl font-bold">#{o.id.slice(0,5)} • {o.customerName}</h3>
-                            <div className="text-gray-500">{o.items.length} Items</div>
-                            <div className="text-xs font-bold text-gray-600 mt-1 uppercase">{o.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Paid Online'}</div>
-                        </div>
-                        <button onClick={()=>update(o.id, 'cooking')} className="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold hover:bg-black transition transform active:scale-95">Accept</button>
-                    </div>
-                ))}
-                {newOrders.length === 0 && <div className="text-center py-10 text-gray-400">No new orders.</div>}
-            </div>
-            <div>
-                 <h2 className="text-2xl font-bold mb-6">Kitchen Status</h2>
-                 {activeOrders.map(o=>(
-                     <div key={o.id} className="bg-white p-4 rounded-xl border mb-3 flex justify-between shadow-sm">
-                         <span className="font-bold">#{o.id.slice(0,5)}</span>
-                         <span className="px-2 py-1 bg-gray-100 rounded text-xs uppercase font-bold">{o.status}</span>
-                     </div>
-                 ))}
-            </div>
-        </div>
-    );
-}
-
-// --- PORTAL 3: DRIVER ---
-function DriverPortal({ user, onBack }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [available, setAvailable] = useState([]);
-    const [active, setActive] = useState(null);
-    const db = getFirestore();
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-    useEffect(() => {
-        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc'));
-        const unsub = onSnapshot(q, (snap) => {
-            const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            setAvailable(all.filter(o => o.status === 'cooking' && !o.driverId));
-            setActive(all.find(o => o.driverId === user?.uid && o.status !== 'delivered'));
-        });
-        return () => unsub();
-    }, [user]);
-
-    const accept = async (id) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { driverId: user.uid, driverName: user.displayName });
-    const update = async (id, s) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status: s });
-
-    if (!isLoggedIn) return <SecureAuth type="driver" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
-
-    return (
-        <div className="animate-fade-in max-w-2xl mx-auto will-change-transform">
-            {active ? (
-                <div className="bg-blue-600 text-white p-8 rounded-3xl shadow-xl transform transition-all duration-500">
-                    <h2 className="text-2xl font-bold mb-4">Current Delivery</h2>
-                    <div className="mb-6"><div className="font-bold opacity-70 uppercase text-xs">Pickup</div><div className="text-xl font-bold">{active.restaurantName}</div></div>
-                    <div className="mb-8"><div className="font-bold opacity-70 uppercase text-xs">Dropoff</div><div className="text-xl font-bold">{active.address}</div></div>
-                    
-                    {active.paymentMethod === 'cod' && (
-                        <div className="bg-white text-red-600 p-4 rounded-xl font-bold text-center mb-6 shadow-md">
-                            Collect ₹{active.total.toFixed(2)} Cash
-                        </div>
-                    )}
-
-                    {active.status==='cooking' && <button onClick={()=>update(active.id,'out_for_delivery')} className="w-full bg-white text-blue-600 py-4 rounded-xl font-bold hover:bg-gray-50 transition transform active:scale-95">Confirm Pickup</button>}
-                    {active.status==='out_for_delivery' && <button onClick={()=>update(active.id,'delivered')} className="w-full bg-green-400 text-green-900 py-4 rounded-xl font-bold hover:bg-green-300 transition transform active:scale-95">Complete Delivery</button>}
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    <h3 className="font-bold text-gray-500 uppercase text-sm">Nearby Jobs ({available.length})</h3>
-                    {available.map(o => (
-                        <div key={o.id} className="bg-white p-6 rounded-2xl border hover:border-blue-500 shadow-sm transition duration-200">
-                            <div className="flex justify-between font-bold text-lg mb-2"><span>{o.restaurantName}</span><span>₹{o.total}</span></div>
-                            <div className="text-gray-500 text-sm mb-4">{o.address}</div>
-                            <button onClick={()=>accept(o.id)} className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition transform active:scale-95">Accept Job</button>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
-
-// --- PORTAL 4: ADMIN (MANAGE ACCESS) ---
-function AdminPortal({ user, onBack }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [tab, setTab] = useState('overview'); 
-    const [orders, setOrders] = useState([]);
-    const [partners, setPartners] = useState([]);
-    const [newPartnerName, setNewPartnerName] = useState('');
-    const [newPartnerUser, setNewPartnerUser] = useState('');
-    const [newPartnerPass, setNewPartnerPass] = useState('');
-    const [newPartnerRole, setNewPartnerRole] = useState('restaurant');
-
-    const db = getFirestore();
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-    useEffect(() => {
-       const q1 = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc'));
-       const unsub1 = onSnapshot(q1, (snapshot) => setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))));
-       
-       const q2 = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'));
-       const unsub2 = onSnapshot(q2, (snapshot) => setPartners(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))));
-       
-       return () => { unsub1(); unsub2(); };
-    }, []);
-
-    // Memoize Stats
-    const stats = useMemo(() => ({
-        revenue: orders.reduce((s,o)=>s+(o.total||0),0).toFixed(2),
-        totalOrders: orders.length
-    }), [orders]);
-
-    const createPartner = async (e) => {
-        e.preventDefault();
-        try {
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), {
-                name: newPartnerName, username: newPartnerUser, password: newPartnerPass, role: newPartnerRole, createdAt: serverTimestamp()
-            });
-            setNewPartnerName(''); setNewPartnerUser(''); setNewPartnerPass('');
-            alert("Partner Account Created Successfully!");
-        } catch(e) { console.error(e); alert("Error creating partner"); }
-    };
-
-    const deletePartner = async (id) => {
-        if(confirm("Revoke access for this partner?")) {
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'partners', id));
-        }
-    }
-
-    if (!isLoggedIn) return <SecureAuth type="admin" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
-
-    return (
-        <div className="animate-fade-in will-change-transform">
-            <div className="flex gap-4 mb-8">
-                <button onClick={()=>setTab('overview')} className={`px-4 py-2 rounded-lg font-bold transition-all ${tab==='overview'?'bg-gray-900 text-white shadow-lg':'bg-white text-gray-500 hover:bg-gray-50'}`}>Overview</button>
-                <button onClick={()=>setTab('partners')} className={`px-4 py-2 rounded-lg font-bold transition-all ${tab==='partners'?'bg-gray-900 text-white shadow-lg':'bg-white text-gray-500 hover:bg-gray-50'}`}>Manage Partners</button>
-            </div>
-
-            {tab === 'overview' && (
                 <div>
-                     <h1 className="text-3xl font-bold mb-8">Business Overview</h1>
-                     <div className="grid grid-cols-3 gap-6 mb-8">
-                        <div className="bg-white p-6 rounded-2xl border shadow-sm transform hover:-translate-y-1 transition"><div className="text-sm text-gray-500 uppercase font-bold">Revenue</div><div className="text-3xl font-bold text-gray-900">₹{stats.revenue}</div></div>
-                        <div className="bg-white p-6 rounded-2xl border shadow-sm transform hover:-translate-y-1 transition"><div className="text-sm text-gray-500 uppercase font-bold">Total Orders</div><div className="text-3xl font-bold text-gray-900">{stats.totalOrders}</div></div>
-                     </div>
-                     <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-gray-50 font-bold text-gray-500"><tr><th className="p-4">ID</th><th className="p-4">Status</th><th className="p-4 text-right">$$</th></tr></thead>
-                            <tbody className="divide-y">{orders.map(o=>(<tr key={o.id} className="hover:bg-gray-50 transition"><td className="p-4">#{o.id.slice(0,4)}</td><td className="p-4">{o.status}</td><td className="p-4 text-right">₹{o.total.toFixed(2)}</td></tr>))}</tbody>
-                        </table>
+                    <button onClick={() => setView('home')} className="btn btn-secondary" style={{marginBottom: 16, width: 'auto'}}><ArrowLeft size={16}/> Back</button>
+                    <div className="card">
+                        <h1>{selectedRestaurant.name}</h1>
+                        <p className="text-gray">{selectedRestaurant.cuisine}</p>
                     </div>
-                </div>
-            )}
-
-            {tab === 'partners' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-white p-6 rounded-2xl border shadow-sm h-fit">
-                        <h2 className="text-xl font-bold mb-4">Add New Partner</h2>
-                        <form onSubmit={createPartner} className="space-y-4">
-                            <div><label className="text-xs font-bold uppercase text-gray-500">Business Name / Driver Name</label><input className="w-full p-3 border rounded-xl" value={newPartnerName} onChange={e=>setNewPartnerName(e.target.value)} required /></div>
-                            <div><label className="text-xs font-bold uppercase text-gray-500">Username</label><input className="w-full p-3 border rounded-xl" value={newPartnerUser} onChange={e=>setNewPartnerUser(e.target.value)} required /></div>
-                            <div><label className="text-xs font-bold uppercase text-gray-500">Password</label><input className="w-full p-3 border rounded-xl" value={newPartnerPass} onChange={e=>setNewPartnerPass(e.target.value)} required /></div>
-                            <div>
-                                <label className="text-xs font-bold uppercase text-gray-500">Role</label>
-                                <select className="w-full p-3 border rounded-xl" value={newPartnerRole} onChange={e=>setNewPartnerRole(e.target.value)}>
-                                    <option value="restaurant">Restaurant Partner</option>
-                                    <option value="driver">Delivery Driver</option>
-                                </select>
-                            </div>
-                            <button className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition transform active:scale-95">Create Account</button>
-                        </form>
-                    </div>
-
-                    <div className="space-y-4">
-                        <h2 className="text-xl font-bold">Authorized Partners</h2>
-                        {partners.length === 0 && <p className="text-gray-400">No partners created yet.</p>}
-                        {partners.map(p => (
-                            <div key={p.id} className="bg-white p-4 rounded-xl border flex justify-between items-center shadow-sm">
-                                <div>
-                                    <div className="font-bold text-lg">{p.name}</div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold flex gap-2">
-                                        <span className={p.role==='restaurant'?'text-orange-600':'text-blue-600'}>{p.role}</span>
-                                        <span>• User: {p.username}</span>
-                                    </div>
-                                </div>
-                                <button onClick={()=>deletePartner(p.id)} className="text-red-500 text-sm font-bold hover:underline">Revoke</button>
+                    <h3>Menu</h3>
+                    <div className="grid" style={{marginTop: 16}}>
+                        {selectedRestaurant.menu.map(item => (
+                            <div key={item.id} className="card flex-between" style={{marginBottom:0}}>
+                                <div><b>{item.name}</b><br/><span className="text-gray">₹{item.price}</span></div>
+                                <button onClick={()=>addToCart(item, selectedRestaurant.id)} className="btn-icon btn-primary"><Plus size={16}/></button>
                             </div>
                         ))}
                     </div>
+                    {cart.length > 0 && <button onClick={()=>setView('cart')} className="btn btn-primary" style={{position:'fixed', bottom: 20, left: '5%', width: '90%', boxShadow: '0 5px 20px rgba(0,0,0,0.3)'}}>View Cart • ₹{grandTotal.toFixed(2)}</button>}
+                </div>
+            )}
+            {view === 'cart' && (
+                <div className="card">
+                    <button onClick={() => setView('restaurant')} style={{background:'none', border:'none', marginBottom: 16, cursor:'pointer'}}><ArrowLeft/></button>
+                    <h2>Checkout</h2>
+                    <div style={{margin: '20px 0'}}>
+                        {cart.map(i => (<div key={i.id} className="flex-between" style={{marginBottom: 10}}><span>{i.qty}x {i.name}</span><span>₹{i.price*i.qty}</span></div>))}
+                        <hr style={{margin: '16px 0', border:'none', borderTop:'1px dashed #ddd'}}/>
+                        <div className="flex-between"><b>Total</b><b>₹{grandTotal.toFixed(2)}</b></div>
+                    </div>
+                    <textarea value={deliveryAddress} onChange={e=>setDeliveryAddress(e.target.value)} placeholder="Delivery Address..." className="input" rows="2" />
+                    <div style={{marginBottom: 20}}>
+                        <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} style={{marginRight: 10}}/> UPI (Scan QR)</label>
+                        <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} style={{marginRight: 10}}/> Cash on Delivery</label>
+                    </div>
+                    {paymentMethod==='upi' && <div className="text-center" style={{marginBottom: 20}}><img src={qrCodeUrl} style={{width: 150}}/><p style={{fontSize: 12}}>UPI: {upiId}</p></div>}
+                    <button onClick={placeOrder} className="btn btn-primary">Place Order</button>
+                </div>
+            )}
+            {view === 'tracking' && activeOrder && (
+                <div className="card text-center" style={{padding: 40}}>
+                    <h2>Order Status</h2>
+                    <div style={{fontSize: '2rem', margin: '20px 0', textTransform:'capitalize', color:'#e65100'}}>{activeOrder.status.replace(/_/g, ' ')}</div>
+                    <p className="text-gray">Tracking ID: #{activeOrder.id.slice(0,6)}</p>
+                    <button onClick={()=>{setActiveOrder(null);setView('home')}} className="btn btn-secondary" style={{marginTop: 20}}>Place New Order</button>
                 </div>
             )}
         </div>
     );
+}
+
+function RestaurantPortal({ user, onBack }) {
+    const [isLoggedIn, setIsLoggedIn] = useState(false); const [orders, setOrders] = useState([]); const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    useEffect(() => { const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, (snapshot) => setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))); return () => unsub(); }, []);
+    const update = async (id, s) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status: s });
+    if (!isLoggedIn) return <SecureAuth type="restaurant" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
+    return (
+        <div className="grid">
+            <h2>Incoming Orders</h2>
+            {orders.map(o => (
+                <div key={o.id} className="card">
+                    <div className="flex-between">
+                        <div><b>#{o.id.slice(0,5)}</b> • {o.customerName}</div>
+                        <span className="badge badge-orange">{o.status}</span>
+                    </div>
+                    <div style={{margin: '10px 0', fontSize: '0.9rem', color: '#666'}}>{o.paymentMethod === 'cod' ? '💵 Cash on Delivery' : '✅ Paid Online'}</div>
+                    {o.status==='placed' && <button onClick={()=>update(o.id,'cooking')} className="btn btn-primary" style={{marginTop: 10}}>Accept Order</button>}
+                </div>
+            ))}
+        </div>
+    )
+}
+
+function DriverPortal({ user, onBack }) {
+    const [isLoggedIn, setIsLoggedIn] = useState(false); const [available, setAvailable] = useState([]); const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    useEffect(() => { const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, (snap) => setAvailable(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => o.status === 'cooking' && !o.driverId))); return () => unsub(); }, []);
+    const accept = async (id) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { driverId: user.uid, driverName: user.displayName });
+    if (!isLoggedIn) return <SecureAuth type="driver" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
+    return (
+        <div>
+            <h2>Available Jobs</h2>
+            <div className="grid">
+                {available.map(o=>(
+                    <div key={o.id} className="card">
+                        <div className="flex-between"><b>{o.restaurantName}</b><b className="text-green">₹{o.total}</b></div>
+                        <p className="text-gray" style={{margin:'10px 0'}}>{o.address}</p>
+                        <button onClick={()=>accept(o.id)} className="btn btn-primary">Accept Job</button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+function AdminPortal({ user, onBack }) {
+    const [isLoggedIn, setIsLoggedIn] = useState(false); const [orders, setOrders] = useState([]); const [partners, setPartners] = useState([]); const [form, setForm] = useState({name:'', user:'', pass:'', role:'restaurant'});
+    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    useEffect(() => { const q1 = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders')); const u1 = onSnapshot(q1, s=>setOrders(s.docs.map(d=>d.data()))); const q2 = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners')); const u2 = onSnapshot(q2, s=>setPartners(s.docs.map(d=>({id:d.id,...d.data()})))); return ()=>{u1();u2();} }, []);
+    const create = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), { name:form.name, username:form.user, password:form.pass, role:form.role }); alert("Created"); };
+    if (!isLoggedIn) return <SecureAuth type="admin" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
+    return (
+        <div>
+            <h2>Admin Dashboard</h2>
+            <div className="grid grid-3" style={{margin: '20px 0'}}>
+                <div className="card text-center"><h3>Revenue</h3><div className="text-green" style={{fontSize: '1.5rem'}}>₹{orders.reduce((s,o)=>s+(o.total||0),0).toFixed(2)}</div></div>
+                <div className="card text-center"><h3>Orders</h3><div style={{fontSize: '1.5rem'}}>{orders.length}</div></div>
+            </div>
+            
+            <div className="card">
+                <h3>Add New Partner</h3>
+                <form onSubmit={create} style={{display:'grid', gap: 10, marginTop: 10}}>
+                    <input className="input" placeholder="Business/Driver Name" onChange={e=>setForm({...form,name:e.target.value})}/>
+                    <input className="input" placeholder="Username" onChange={e=>setForm({...form,user:e.target.value})}/>
+                    <input className="input" placeholder="Password" onChange={e=>setForm({...form,pass:e.target.value})}/>
+                    <select className="input" onChange={e=>setForm({...form,role:e.target.value})}><option value="restaurant">Restaurant</option><option value="driver">Driver</option></select>
+                    <button className="btn btn-primary">Create Account</button>
+                </form>
+            </div>
+        </div>
+    )
 }
 
 
