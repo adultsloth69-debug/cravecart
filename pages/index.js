@@ -9,16 +9,15 @@ import {
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
-  getAuth, onAuthStateChanged, updateProfile, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously 
+  getAuth, onAuthStateChanged, updateProfile, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut 
 } from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, onSnapshot, 
   orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc, getDoc, setDoc 
 } from 'firebase/firestore';
 
-// --- 1. FIREBASE CONFIGURATION ---
+// --- 1. GLOBAL FIREBASE INIT (DO NOT TOUCH) ---
 let app, auth, db;
-let initError = null;
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -30,70 +29,45 @@ const firebaseConfig = {
 };
 
 try {
-    if (!firebaseConfig.apiKey) throw new Error("Missing Config");
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
+    if (firebaseConfig.apiKey) {
+        // Singleton Pattern: Only initialize if not already running
+        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        auth = getAuth(app);
+        db = getFirestore(app);
+    }
 } catch (e) {
-    initError = e.message;
+    console.error("Firebase Init Failed", e);
 }
 
-// --- 2. CSS STYLES (RED THEME v5) ---
+// --- 2. STYLES ---
 const cssStyles = `
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  body { background-color: #fff1f2; color: #333; padding-bottom: 80px; } /* Light Red BG */
-  .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
-  .text-center { text-align: center; }
-  .flex { display: flex; align-items: center; }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+  body { background-color: #f0fdf4; color: #333; padding-bottom: 80px; }
+  .container { max-width: 600px; margin: 0 auto; padding: 16px; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  
-  .text-primary { color: #e11d48; } /* Red */
-  .text-green { color: #2e7d32; }
-  .text-gray { color: #666; font-size: 0.9rem; }
+  .text-primary { color: #15803d; } 
   .font-bold { font-weight: 700; }
-  
-  .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
-  .btn:active { transform: scale(0.98); }
-  
-  .btn-primary { background: #e11d48; color: white; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.3); } /* Red Button */
-  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
-  .btn-danger { color: #d32f2f; background: transparent; }
-  .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .btn-link { background: none; border: none; color: #e11d48; font-weight: bold; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
-
-  .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
-  .input:focus { border-color: #e11d48; ring: 2px solid #fecdd3; }
-  
-  .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
-  .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
-  
+  .btn { padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 1rem; margin-top: 10px; }
+  .btn-primary { background: #15803d; color: white; } 
+  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; margin-top: 0; }
+  .btn-danger { color: #d32f2f; background: transparent; padding: 0; width: auto; margin:0; }
+  .btn-link { background: none; border: none; color: #15803d; font-weight: bold; cursor: pointer; text-decoration: underline; margin-top: 15px; display: block; width: 100%; }
+  .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; margin-bottom: 12px; display: block; }
+  .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
-  .logo { font-size: 1.5rem; font-weight: 800; color: #881337; display: flex; align-items: center; gap: 8px; }
-  
-  .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
-  .badge-red { background: #ffe4e6; color: #e11d48; }
-  .badge-green { background: #e8f5e9; color: #2e7d32; }
-  
-  .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
-  .portal-card:hover { border-color: #e11d48; transform: translateY(-2px); }
-  
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  
-  @media (min-width: 768px) {
-    .grid { grid-template-columns: 1fr 1fr; }
-    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-  }
+  .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; }
+  @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
 `;
 
-// --- STATIC DATA ---
+// --- DATA ---
 const MOCK_RESTAURANTS = [
-  { id: 1, name: "Burger King", cuisine: "American • Burgers", rating: 4.2, time: "25-30 min", price: "₹200 for one", image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?auto=format&fit=crop&w=800&q=80", menu: [{ id: 101, name: "Whopper Meal", price: 349, desc: "Burger, fries, drink.", isVeg: false }] },
-  { id: 2, name: "Pizza Hut", cuisine: "Italian • Pizza", rating: 4.5, time: "35-40 min", price: "₹300 for one", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80", menu: [{ id: 201, name: "Pepperoni Feast", price: 499, desc: "Double pepperoni pizza.", isVeg: false }] }
+  { id: 1, name: "Burger King", cuisine: "Burgers", rating: 4.2, time: "30 min", price: "₹200", image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500", menu: [{ id: 101, name: "Whopper", price: 349 }] },
+  { id: 2, name: "Pizza Hut", cuisine: "Pizza", rating: 4.5, time: "40 min", price: "₹300", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", menu: [{ id: 201, name: "Pepperoni", price: 499 }] }
 ];
 
-// --- APP COMPONENT ---
+// --- APP ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [activeApp, setActiveApp] = useState('landing'); 
@@ -101,75 +75,51 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (initError) { setLoading(false); return; }
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
 
-  const handleLogout = useCallback(async () => { 
-      setCart([]); 
-      await signOut(auth);
-      setActiveApp('landing'); 
-  }, []);
-  
-  const goBackToHome = useCallback(() => { setActiveApp('landing'); }, []);
+  const handleLogout = useCallback(async () => { setCart([]); if(auth) await signOut(auth); setActiveApp('landing'); }, []);
+  const goBack = useCallback(() => { setActiveApp('landing'); }, []);
   const cartCount = useMemo(() => cart.reduce((a,b)=>a+b.qty,0), [cart]);
 
-  if (initError) return <div className="container" style={{color:'red'}}><h1>Error</h1><p>{initError}</p></div>;
-  if (loading) return <div className="container text-center" style={{marginTop: 100}}>Loading Platform...</div>;
+  if (!db) return <div className="container" style={{color:'red'}}><h1>Error</h1><p>Database not connected. Check Vercel Keys.</p></div>;
+  if (loading) return <div className="container text-center" style={{marginTop: 100}}>Loading...</div>;
 
   return (
     <>
       <Head><style>{cssStyles}</style></Head>
-      
-      {activeApp === 'landing' ? (
-          <LandingPage setApp={setActiveApp} />
-      ) : (
-          <div>
-              <PortalHeader activeApp={activeApp} user={user} onLogout={handleLogout} cartCount={cartCount} />
-              <main className="container">
-                  {activeApp === 'customer' && <CustomerPortal user={user} cart={cart} setCart={setCart} onBack={goBackToHome} />}
-                  {activeApp === 'restaurant' && <RestaurantPortal user={user} onBack={goBackToHome} />}
-                  {activeApp === 'driver' && <DriverPortal user={user} onBack={goBackToHome} />}
-                  {activeApp === 'admin' && <AdminPortal user={user} onBack={goBackToHome} />}
-              </main>
-          </div>
-      )}
+      {activeApp === 'landing' ? <LandingPage setApp={setActiveApp} /> : 
+        <div>
+            <PortalHeader activeApp={activeApp} user={user} onLogout={handleLogout} cartCount={cartCount} />
+            <main className="container">
+                {activeApp === 'customer' && <CustomerPortal user={user} cart={cart} setCart={setCart} onBack={goBack} />}
+                {activeApp === 'restaurant' && <RestaurantPortal user={user} onBack={goBack} />}
+                {activeApp === 'driver' && <DriverPortal user={user} onBack={goBack} />}
+                {activeApp === 'admin' && <AdminPortal user={user} onBack={goBack} />}
+            </main>
+        </div>
+      }
     </>
   );
 }
-
-// --- COMPONENTS ---
 
 function LandingPage({ setApp }) {
     return (
         <div style={{ background: 'white', minHeight: '100vh' }}>
             <div className="header flex-between">
-                <div className="logo"><Utensils color="#e11d48"/> CraveCart <span style={{fontSize:'0.7rem', color:'#999', marginLeft:5}}>v5 (Email)</span></div>
+                <div style={{fontWeight:'bold', color:'#15803d', fontSize:'1.2rem'}}>CraveCart</div>
                 <div className="flex" style={{gap:10}}>
                     <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
-                    <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order Food</button>
+                    <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order</button>
                 </div>
             </div>
-            <div className="container text-center" style={{paddingTop: 60, paddingBottom: 100}}>
-                <h1 style={{fontSize: '3rem', marginBottom: 16}}>Delicious Food,<br/><span className="text-primary">Delivered.</span></h1>
-                <p className="text-gray" style={{fontSize: '1.2rem', marginBottom: 40}}>The complete ecosystem for Customers, Restaurants, Drivers, and Owners.</p>
-                <div className="grid grid-3">
-                    <button onClick={() => setApp('restaurant')} className="portal-card card">
-                        <div className="badge-red" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
-                        <h3>Restaurant Partner</h3>
-                        <p className="text-gray">Manage orders & menu</p>
-                    </button>
-                    <button onClick={() => setApp('driver')} className="portal-card card">
-                        <div className="badge-green" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><Bike size={24}/></div>
-                        <h3>Delivery Fleet</h3>
-                        <p className="text-gray">Accept jobs nearby</p>
-                    </button>
-                    <button onClick={() => setApp('admin')} className="portal-card card">
-                        <div style={{background: '#f3e5f5', color:'#7b1fa2', width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ShieldCheck size={24}/></div>
-                        <h3>Admin Console</h3>
-                        <p className="text-gray">Business revenue stats</p>
-                    </button>
+            <div className="container text-center" style={{paddingTop: 60}}>
+                <h1 style={{fontSize: '2.5rem', marginBottom: 16}}>Food Delivery <span className="text-primary">Ecosystem</span></h1>
+                <div className="grid">
+                    <button onClick={() => setApp('restaurant')} className="card"><h3>Restaurant Login</h3></button>
+                    <button onClick={() => setApp('driver')} className="card"><h3>Driver Login</h3></button>
                 </div>
             </div>
         </div>
@@ -179,282 +129,157 @@ function LandingPage({ setApp }) {
 function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     return (
         <div className="header flex-between">
-            <div className="logo" style={{fontSize: '1.2rem'}}>
-                {activeApp === 'customer' ? <ShoppingBag color="#e11d48"/> : activeApp === 'restaurant' ? <ChefHat color="#e11d48"/> : activeApp === 'driver' ? <Bike color="#1565c0"/> : <ShieldCheck/>}
-                <span style={{textTransform:'capitalize'}}>{activeApp} Portal</span>
-            </div>
-            <div className="flex" style={{gap: 16}}>
-                {activeApp === 'customer' && (
-                    <div style={{position:'relative'}}>
-                        <ShoppingBag size={24}/>
-                        {cartCount > 0 && <span style={{position:'absolute', top:-5, right:-5, background:'red', color:'white', borderRadius:'50%', width:18, height:18, fontSize:10, display:'flex', alignItems:'center', justifyContent:'center'}}>{cartCount}</span>}
-                    </div>
-                )}
-                <button onClick={onLogout} className="btn-danger flex" style={{gap: 4}}><LogOut size={16}/> Exit</button>
+            <div style={{fontWeight:'bold', textTransform:'capitalize'}}>{activeApp} Portal</div>
+            <div style={{display:'flex', gap:10, alignItems:'center'}}>
+                {activeApp === 'customer' && <div><ShoppingBag size={20}/> {cartCount>0 && <b>({cartCount})</b>}</div>}
+                <button onClick={onLogout} className="btn-danger">Exit</button>
             </div>
         </div>
     )
 }
 
-// --- SECURE AUTH COMPONENT (EMAIL ONLY) ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [isSignup, setIsSignup] = useState(false);
-    const [identifier, setIdentifier] = useState(''); 
-    const [secret, setSecret] = useState(''); 
+    const [email, setEmail] = useState(''); 
+    const [password, setPassword] = useState(''); 
     const [name, setName] = useState(''); 
     const [error, setError] = useState(''); 
     const [loading, setLoading] = useState(false);
-    const db = getFirestore(); 
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    const handleCustomerAuth = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError("");
-        
+    const handleAuth = async (e) => {
+        e.preventDefault(); setLoading(true); setError("");
         try {
-            let user;
-            if (isSignup) {
-                if (!name.trim()) throw new Error("Name is required");
-                const result = await createUserWithEmailAndPassword(auth, identifier, secret);
-                user = result.user;
-                await updateProfile(user, { displayName: name });
+            if (type === 'customer') {
+                let user;
+                if (isSignup) {
+                    if (!name) throw new Error("Name required");
+                    const res = await createUserWithEmailAndPassword(auth, email, password);
+                    user = res.user;
+                    await updateProfile(user, { displayName: name });
+                } else {
+                    const res = await signInWithEmailAndPassword(auth, email, password);
+                    user = res.user;
+                }
+                onSuccess({ name: user.displayName || name, uid: user.uid });
             } else {
-                const result = await signInWithEmailAndPassword(auth, identifier, secret);
-                user = result.user;
+                if (type === 'admin' && email === 'admin' && password === 'admin123') { onSuccess({name:'Admin', role:'admin'}); return; }
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), where('username', '==', email), where('password', '==', password));
+                const snap = await getDocs(q);
+                if (snap.empty) throw new Error("Invalid credentials");
+                const data = snap.docs[0].data();
+                if (type !== 'admin' && data.role !== type) throw new Error("Wrong Portal");
+                onSuccess(data);
             }
-            onSuccess({ name: user.displayName || name, uid: user.uid });
-        } catch (err) {
-            console.error(err);
-            if (err.code === 'auth/email-already-in-use') setError("Email taken. Try logging in.");
-            else if (err.code === 'auth/wrong-password') setError("Incorrect password.");
-            else if (err.code === 'auth/user-not-found') setError("No account found. Sign up.");
-            else if (err.code === 'auth/weak-password') setError("Password must be 6+ chars.");
-            else setError(err.message);
-            setLoading(false);
-        }
-    };
-
-    const handlePartnerLogin = async (e) => { 
-        e.preventDefault(); setError(''); setLoading(true); 
-        try { 
-            if (type === 'admin') { 
-                if (identifier === 'admin' && secret === 'admin123') { onSuccess({ name: 'Super Admin', role: 'admin' }); return; } 
-                else { throw new Error("Invalid Admin Credentials. Try admin/admin123"); } 
-            } 
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), where('username', '==', identifier), where('password', '==', secret)); 
-            const snapshot = await getDocs(q); 
-            if (snapshot.empty) throw new Error("Invalid credentials."); 
-            const partnerData = snapshot.docs[0].data(); 
-            if (type === 'restaurant' && partnerData.role !== 'restaurant') throw new Error("Unauthorized"); 
-            if (type === 'driver' && partnerData.role !== 'driver') throw new Error("Unauthorized"); 
-            const auth = getAuth(); 
-            if(!auth.currentUser) await signInAnonymously(auth); 
-            onSuccess(partnerData); 
-        } catch (err) { setError(err.message); setLoading(false); } 
+        } catch (err) { setError(err.message); setLoading(false); }
     };
 
     return (
         <div className="modal-overlay">
              <div className="modal">
-                 <button onClick={onBack} style={{position:'absolute', top:16, right:16, border:'none', background:'none', cursor:'pointer'}}><X size={24} color="#999"/></button>
-                 
-                 <div className="text-center" style={{marginBottom: 24}}>
-                     <h2>{type === 'customer' ? (isSignup ? 'Create Account' : 'Welcome Back') : 'Secure Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? (isSignup ? 'Sign up to order food' : 'Login to your account') : 'Enter Partner Credentials'}</p>
-                 </div>
-
-                 {type === 'customer' ? ( 
-                    <form onSubmit={handleCustomerAuth}>
-                        {isSignup && (
-                            <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
-                        )}
-                        <input type="email" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Email Address" required />
-                        <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password (Min 6 chars)" required />
-                        
-                        {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
-                        
-                        <button className="btn btn-primary">{loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}</button>
-                        
-                        <div style={{marginTop: 16, textAlign: 'center'}}>
-                            <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="btn-link">
-                                {isSignup ? "Already have an account? Login" : "New here? Create Account"}
-                            </button>
-                        </div>
-                    </form>
-                 ) : ( 
-                    <form onSubmit={handlePartnerLogin}>
-                        <input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required />
-                        <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password" required />
-                        {error && <p style={{color:'red', marginBottom:10}}>{error}</p>}
-                        <button className="btn btn-primary">{loading?'Auth...':'Login'}</button>
-                    </form> 
-                 )}
+                 <button onClick={onBack} style={{float:'right', background:'none', border:'none'}}>✕</button>
+                 <div className="text-center" style={{marginBottom: 20}}><h2>{type === 'customer' ? (isSignup ? 'Create Account' : 'Login') : 'Partner Login'}</h2></div>
+                 <form onSubmit={handleAuth}>
+                     {type === 'customer' && isSignup && <input className="input" placeholder="Full Name" value={name} onChange={e=>setName(e.target.value)} required />}
+                     <input className="input" placeholder={type==='customer'?"Email":"Username"} value={email} onChange={e=>setEmail(e.target.value)} required />
+                     <input className="input" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
+                     {error && <p style={{color:'red', marginBottom:10}}>{error}</p>}
+                     <button className="btn btn-primary">{loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}</button>
+                 </form>
+                 {type === 'customer' && <button className="btn-link" onClick={()=>setIsSignup(!isSignup)}>{isSignup ? "Have an account? Login" : "New? Create Account"}</button>}
              </div>
         </div>
     );
 }
 
-// --- PROFILE SETUP ---
 function ProfileSetup({ user, onComplete }) {
-    const [phone, setPhone] = useState('');
-    const [city, setCity] = useState('');
-    const [address, setAddress] = useState('');
-    const [loading, setLoading] = useState(false);
-    const db = getFirestore();
-
-    const saveProfile = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+    const [phone, setPhone] = useState(''); const [city, setCity] = useState(''); const [address, setAddress] = useState(''); const [loading, setLoading] = useState(false);
+    const save = async (e) => { 
+        e.preventDefault(); setLoading(true); 
         try {
-            await setDoc(doc(db, 'users', user.uid), {
-                name: user.displayName,
-                email: user.email,
-                phone,
-                city,
-                address,
-                createdAt: serverTimestamp()
-            });
-            onComplete({ name: user.displayName, phone, city, address });
-        } catch (error) {
-            alert("Error saving profile: " + error.message);
-            setLoading(false);
+            if (!user?.uid || !db) throw new Error("System error. Try reloading.");
+            await setDoc(doc(db, 'users', user.uid), { name: user.displayName, email: user.email, phone, city, address }); 
+            onComplete({ name: user.displayName, phone, city, address }); 
+        } catch(e) {
+            alert("Error: " + e.message); setLoading(false);
         }
+    };
+    return (
+        <div className="modal-overlay"><div className="modal">
+            <h2>Complete Profile</h2>
+            <form onSubmit={save} style={{marginTop:10}}>
+                <input className="input" placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} required />
+                <input className="input" placeholder="City" value={city} onChange={e=>setCity(e.target.value)} required />
+                <input className="input" placeholder="Address" value={address} onChange={e=>setAddress(e.target.value)} required />
+                <button className="btn btn-primary">{loading?'Saving...':'Save'}</button>
+            </form>
+        </div></div>
+    )
+}
+
+function CustomerPortal({ user, cart, setCart, onBack }) {
+    const [view, setView] = useState('home'); const [profile, setProfile] = useState(null); const [selRest, setSelRest] = useState(null); const [order, setOrder] = useState(null); 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    
+    if (!user) return <SecureAuth type="customer" onSuccess={()=>{}} onBack={onBack}/>;
+    
+    // SAFE PROFILE CHECK
+    useEffect(() => { 
+        if(!user?.uid || !db) return;
+        getDoc(doc(db, 'users', user.uid)).then(s => { 
+            if(s.exists()) setProfile(s.data()); else setProfile('new'); 
+        }).catch(e => console.log("Profile check failed", e));
+    }, [user]);
+
+    useEffect(() => { if (order?.id) onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', order.id), s => { if(s.exists()) setOrder(prev => ({...prev, ...s.data()})); }); }, [order?.id]);
+
+    if (profile === 'new') return <ProfileSetup user={user} onComplete={setProfile} />;
+    if (!profile) return <div className="container text-center" style={{marginTop:50}}>Loading...</div>;
+
+    const placeOrder = async () => {
+        const total = cart.reduce((s,i)=>s+(i.price*i.qty),0) + 40;
+        const newOrder = { items: cart, total, restaurantId: selRest.id, restaurantName: selRest.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: profile.name, customerPhone: profile.phone, address: profile.address, driverId: null, paymentMethod: 'cod' };
+        const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), newOrder);
+        setCart([]); setOrder({id: res.id, ...newOrder}); setView('tracking');
     };
 
     return (
-        <div className="modal-overlay">
-            <div className="modal">
-                <div className="text-center mb-6">
-                    <h2>Complete Profile</h2>
-                    <p className="text-gray">One last step! Where should we deliver?</p>
-                </div>
-                <form onSubmit={saveProfile}>
-                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Phone Number</label>
-                    <input className="input" type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+91 98765 43210" required />
-                    
-                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>City</label>
-                    <input className="input" value={city} onChange={e=>setCity(e.target.value)} placeholder="e.g. Mumbai" required />
-                    
-                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Full Address</label>
-                    <textarea className="input" rows="2" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Flat No, Building, Street" required />
-                    
-                    <button className="btn btn-primary" style={{marginTop: 10}} disabled={loading}>
-                        {loading ? 'Saving...' : 'Save & Start Ordering'}
-                    </button>
-                </form>
-            </div>
+        <div>
+            {view === 'home' && (<div>
+                <div style={{marginBottom:20}}><h2>Hi {profile.name}</h2><small>{profile.address}</small></div>
+                {order && <div className="card" onClick={()=>setView('tracking')} style={{background:'#15803d', color:'white'}}>Active Order: {order.status}</div>}
+                <div className="grid">{MOCK_RESTAURANTS.map(r=><div key={r.id} className="card" onClick={()=>{setSelRest(r);setView('rest')}}><img src={r.image} className="card-img"/><b>{r.name}</b></div>)}</div>
+            </div>)}
+            {view === 'rest' && selRest && (<div><button onClick={()=>setView('home')} className="btn-secondary" style={{width:'auto', marginBottom:10}}>Back</button><h1>{selRest.name}</h1>
+                <div className="grid">{selRest.menu.map(i=><div key={i.id} className="card flex-between"><div><b>{i.name}</b><br/>₹{i.price}</div><button className="btn-primary" style={{width:'auto', padding:'5px 10px'}} onClick={()=>setCart([...cart, {...i, qty:1}])}>Add</button></div>)}</div>
+                {cart.length>0 && <button className="btn-primary" style={{position:'fixed', bottom:10, left:10, width:'95%'}} onClick={()=>setView('cart')}>Cart ({cart.length})</button>}
+            </div>)}
+            {view === 'cart' && (<div><button onClick={()=>setView('rest')} className="btn-secondary" style={{width:'auto', marginBottom:10}}>Back</button><h2>Checkout</h2>
+                {cart.map((i,x)=><div key={x} className="flex-between" style={{marginBottom:10}}><span>{i.name}</span><b>₹{i.price}</b></div>)}
+                <hr/><div className="flex-between"><b>Total (+Del)</b><b>₹{cart.reduce((s,i)=>s+(i.price*i.qty),0)+40}</b></div>
+                <button onClick={placeOrder} className="btn-primary" style={{marginTop:20}}>Place Order (COD)</button>
+            </div>)}
+            {view === 'tracking' && order && (<div><h2>Order #{order.id.slice(0,4)}</h2><h1 style={{color:'#15803d', textTransform:'capitalize'}}>{order.status}</h1><p>Driver: {order.driverName || "Finding..."}</p><button onClick={()=>{setOrder(null);setView('home')}} className="btn-secondary">Close</button></div>)}
         </div>
     )
-}
-
-// --- PORTALS ---
-function CustomerPortal({ user, cart, setCart, onBack }) {
-    const [view, setView] = useState('home'); 
-    const [profileChecked, setProfileChecked] = useState(false);
-    const [userProfile, setUserProfile] = useState(null);
-    const [selectedRestaurant, setSelectedRestaurant] = useState(null); 
-    const [activeOrder, setActiveOrder] = useState(null); 
-    const [paymentMethod, setPaymentMethod] = useState('upi'); 
-    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
-    const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
-
-    if (!user || user.isAnonymous) return <SecureAuth type="customer" onSuccess={(u) => {}} onBack={onBack} />;
-
-    useEffect(() => {
-        const checkProfile = async () => {
-            const docRef = doc(db, 'users', user.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) setUserProfile(docSnap.data());
-            setProfileChecked(true);
-        };
-        checkProfile();
-    }, [user]);
-
-    if (!profileChecked) return <div className="container text-center" style={{marginTop:100}}>Checking Profile...</div>;
-    if (!userProfile) return <ProfileSetup user={user} onComplete={(p) => setUserProfile(p)} />;
-
-    useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
-    const placeOrder = async () => { const order = { items: cart, total: grandTotal, restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: userProfile.name, customerPhone: userProfile.phone, address: userProfile.address + ", " + userProfile.city, driverId: null, paymentMethod: paymentMethod }; const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); };
-    const addToCart = useCallback((item, rId) => { setCart(p => { if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; } const ex = p.find(i=>i.id===item.id); return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}]; }); }, []);
-
-    return (
-        <div>
-            {view === 'home' && (
-                <>
-                    <div style={{marginBottom: 20}}><h2>Hello, {userProfile.name.split(' ')[0]} 👋</h2><p className="text-gray" style={{fontSize:'0.9rem'}}>Delivering to <b>{userProfile.city}</b></p></div>
-                    {activeOrder && (<div onClick={() => setView('tracking')} className="card" style={{background:'#e11d48', color:'white', display:'flex', justifyContent:'space-between', cursor:'pointer'}}><div><b>Order in Progress</b><br/><small>Tap to track</small></div><ChevronRight/></div>)}
-                    <h2 style={{marginBottom: 16}}>Restaurants</h2>
-                    <div className="grid">
-                        {MOCK_RESTAURANTS.map(r => (
-                            <div key={r.id} onClick={()=>{setSelectedRestaurant(r);setView('restaurant')}} className="card" style={{padding:0, overflow:'hidden', cursor:'pointer'}}>
-                                <img src={r.image} className="card-img" style={{borderRadius:0, height: 150}} />
-                                <div style={{padding: 16}}>
-                                    <div className="flex-between"><h3>{r.name}</h3><span className="badge badge-green">{r.rating} ★</span></div>
-                                    <p className="text-gray">{r.cuisine} • {r.price}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
-            {view === 'restaurant' && selectedRestaurant && (
-                <div>
-                    <button onClick={() => setView('home')} className="btn btn-secondary" style={{marginBottom: 16, width: 'auto'}}><ArrowLeft size={16}/> Back</button>
-                    <div className="card"><h1>{selectedRestaurant.name}</h1><p className="text-gray">{selectedRestaurant.cuisine}</p></div>
-                    <h3>Menu</h3>
-                    <div className="grid" style={{marginTop: 16}}>{selectedRestaurant.menu.map(item => (<div key={item.id} className="card flex-between" style={{marginBottom:0}}><div><b>{item.name}</b><br/><span className="text-gray">₹{item.price}</span></div><button onClick={()=>addToCart(item, selectedRestaurant.id)} className="btn-icon btn-primary"><Plus size={16}/></button></div>))}</div>
-                    {cart.length > 0 && <button onClick={()=>setView('cart')} className="btn btn-primary" style={{position:'fixed', bottom: 20, left: '5%', width: '90%', boxShadow: '0 5px 20px rgba(0,0,0,0.3)'}}>View Cart • ₹{grandTotal.toFixed(2)}</button>}
-                </div>
-            )}
-            {view === 'cart' && (
-                <div className="card">
-                    <button onClick={() => setView('restaurant')} style={{background:'none', border:'none', marginBottom: 16, cursor:'pointer'}}><ArrowLeft/></button>
-                    <h2>Checkout</h2>
-                    <div style={{margin: '20px 0'}}>{cart.map(i => (<div key={i.id} className="flex-between" style={{marginBottom: 10}}><span>{i.qty}x {i.name}</span><span>₹{i.price*i.qty}</span></div>))}<hr style={{margin: '16px 0', border:'none', borderTop:'1px dashed #ddd'}}/><div className="flex-between"><b>Total</b><b>₹{grandTotal.toFixed(2)}</b></div></div>
-                    <div style={{background:'#f8f9fa', padding:16, borderRadius:12, marginBottom: 20}}><div style={{fontSize:'0.8rem', color:'#666', fontWeight:'bold', marginBottom:4}}>DELIVER TO</div><div>{userProfile.address}</div><div>{userProfile.city}</div><div>Phone: {userProfile.phone}</div></div>
-                    <div style={{marginBottom: 20}}><label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} style={{marginRight: 10}}/> UPI (Scan QR)</label><label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} style={{marginRight: 10}}/> Cash on Delivery</label></div>
-                    {paymentMethod==='upi' && <div className="text-center" style={{marginBottom: 20}}><img src={qrCodeUrl} style={{width: 150}}/><p style={{fontSize: 12}}>UPI: {upiId}</p></div>}
-                    <button onClick={placeOrder} className="btn btn-primary">Place Order</button>
-                </div>
-            )}
-            {view === 'tracking' && activeOrder && (
-                <div className="card text-center" style={{padding: 40}}><h2>Order Status</h2><div style={{fontSize: '2rem', margin: '20px 0', textTransform:'capitalize', color:'#e11d48'}}>{activeOrder.status.replace(/_/g, ' ')}</div><p className="text-gray">Tracking ID: #{activeOrder.id.slice(0,6)}</p><button onClick={()=>{setActiveOrder(null);setView('home')}} className="btn btn-secondary" style={{marginTop: 20}}>Place New Order</button></div>
-            )}
-        </div>
-    );
 }
 
 function RestaurantPortal({ user, onBack }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false); const [orders, setOrders] = useState([]); const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    useEffect(() => { const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, (snapshot) => setOrders(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))); return () => unsub(); }, []);
-    const update = async (id, s) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status: s });
-    if (!isLoggedIn) return <SecureAuth type="restaurant" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
-    return (
-        <div className="grid"><h2>Incoming Orders</h2>{orders.map(o => (<div key={o.id} className="card"><div className="flex-between"><div><b>#{o.id.slice(0,5)}</b> • {o.customerName}</div><span className="badge badge-green">{o.status}</span></div><div style={{margin: '10px 0', fontSize: '0.9rem', color: '#666'}}>{o.paymentMethod === 'cod' ? '💵 Cash on Delivery' : '✅ Paid Online'}</div><div style={{margin: '5px 0', fontSize: '0.8rem'}}>📍 {o.address}</div><div style={{fontSize: '0.8rem'}}>📞 {o.customerPhone}</div>{o.status==='placed' && <button onClick={()=>update(o.id,'cooking')} className="btn btn-primary" style={{marginTop: 10}}>Accept Order</button>}</div>))}</div>
-    )
+    const [auth, setAuth] = useState(false); const [orders, setOrders] = useState([]); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    useEffect(() => { const q=query(collection(db,'artifacts',appId,'public','data','orders'),orderBy('createdAt','desc')); return onSnapshot(q,s=>setOrders(s.docs.map(d=>({id:d.id,...d.data()})))); }, []);
+    if(!auth) return <SecureAuth type="restaurant" onSuccess={()=>setAuth(true)} onBack={onBack}/>;
+    return <div className="grid">{orders.map(o=><div key={o.id} className="card"><b>#{o.id.slice(0,4)}</b>: {o.status} {o.status==='placed'&&<button className="btn-primary" onClick={()=>updateDoc(doc(db,'artifacts',appId,'public','data','orders',o.id),{status:'cooking'})}>Accept</button>}</div>)}</div>;
 }
-
 function DriverPortal({ user, onBack }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false); const [available, setAvailable] = useState([]); const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    useEffect(() => { const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc')); const unsub = onSnapshot(q, (snap) => setAvailable(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(o => o.status === 'cooking' && !o.driverId))); return () => unsub(); }, []);
-    const accept = async (id) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { driverId: user.uid, driverName: user.displayName });
-    if (!isLoggedIn) return <SecureAuth type="driver" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
-    return (
-        <div><h2>Available Jobs</h2><div className="grid">{available.map(o=>(<div key={o.id} className="card"><div className="flex-between"><b>{o.restaurantName}</b><b className="text-green">₹{o.total}</b></div><p className="text-gray" style={{margin:'10px 0'}}>{o.address}</p><p className="text-gray" style={{fontSize:'0.8rem'}}>📞 {o.customerPhone}</p><button onClick={()=>accept(o.id)} className="btn btn-primary">Accept Job</button></div>))}</div></div>
-    )
+    const [auth, setAuth] = useState(false); const [jobs, setJobs] = useState([]); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    useEffect(() => { const q=query(collection(db,'artifacts',appId,'public','data','orders'),orderBy('createdAt','desc')); return onSnapshot(q,s=>setJobs(s.docs.map(d=>({id:d.id,...d.data()})).filter(o=>o.status==='cooking' && !o.driverId))); }, []);
+    if(!auth) return <SecureAuth type="driver" onSuccess={()=>setAuth(true)} onBack={onBack}/>;
+    return <div className="grid">{jobs.map(o=><div key={o.id} className="card"><b>{o.restaurantName}</b><br/>{o.address}<button className="btn-primary" onClick={()=>updateDoc(doc(db,'artifacts',appId,'public','data','orders',o.id),{driverId:'Me',driverName:'Driver X',status:'out_for_delivery'})}>Accept</button></div>)}</div>;
 }
-
 function AdminPortal({ user, onBack }) {
-    const [isLoggedIn, setIsLoggedIn] = useState(false); const [orders, setOrders] = useState([]); const [partners, setPartners] = useState([]); const [form, setForm] = useState({name:'', user:'', pass:'', role:'restaurant'});
-    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    useEffect(() => { const q1 = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders')); const u1 = onSnapshot(q1, s=>setOrders(s.docs.map(d=>d.data()))); const q2 = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners')); const u2 = onSnapshot(q2, s=>setPartners(s.docs.map(d=>({id:d.id,...d.data()})))); return ()=>{u1();u2();} }, []);
-    const create = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), { name:form.name, username:form.user, password:form.pass, role:form.role }); alert("Created"); };
-    if (!isLoggedIn) return <SecureAuth type="admin" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
-    return (
-        <div><h2>Admin Dashboard</h2><div className="grid grid-3" style={{margin: '20px 0'}}><div className="card text-center"><h3>Revenue</h3><div className="text-green" style={{fontSize: '1.5rem'}}>₹{orders.reduce((s,o)=>s+(o.total||0),0).toFixed(2)}</div></div><div className="card text-center"><h3>Orders</h3><div style={{fontSize: '1.5rem'}}>{orders.length}</div></div></div><div className="card"><h3>Add New Partner</h3><form onSubmit={create} style={{display:'grid', gap: 10, marginTop: 10}}><input className="input" placeholder="Business/Driver Name" onChange={e=>setForm({...form,name:e.target.value})}/><input className="input" placeholder="Username" onChange={e=>setForm({...form,user:e.target.value})}/><input className="input" placeholder="Password" onChange={e=>setForm({...form,pass:e.target.value})}/><select className="input" onChange={e=>setForm({...form,role:e.target.value})}><option value="restaurant">Restaurant</option><option value="driver">Driver</option></select><button className="btn btn-primary">Create Account</button></form></div></div>
-    )
+    const [auth, setAuth] = useState(false); const [form,setForm]=useState({}); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const create = async (e) => { e.preventDefault(); await addDoc(collection(db,'artifacts',appId,'public','data','partners'), form); alert("Created"); };
+    if(!auth) return <SecureAuth type="admin" onSuccess={()=>setAuth(true)} onBack={onBack}/>;
+    return <div className="card"><h3>Create Partner</h3><input className="input" placeholder="User" onChange={e=>setForm({...form,username:e.target.value})}/><input className="input" placeholder="Pass" onChange={e=>setForm({...form,password:e.target.value})}/><select className="input" onChange={e=>setForm({...form,role:e.target.value})}><option>restaurant</option><option>driver</option></select><button className="btn-primary" onClick={create}>Add</button></div>;
 }
 
 
