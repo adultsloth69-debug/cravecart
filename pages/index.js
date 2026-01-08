@@ -16,9 +16,8 @@ import {
   orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc, getDoc, setDoc 
 } from 'firebase/firestore';
 
-// --- CONFIG ---
+// --- 1. FIREBASE CONFIGURATION (GLOBAL SAFE INSTANCE) ---
 let app, auth, db;
-let initError = null;
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -29,41 +28,50 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
+// Initialize once and reuse
 try {
-    if (!firebaseConfig.apiKey) throw new Error("Missing Config");
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
+    if (firebaseConfig.apiKey) {
+        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        auth = getAuth(app);
+        db = getFirestore(app);
+    }
 } catch (e) {
-    initError = e.message;
+    console.error("Firebase Init Error", e);
 }
 
-// --- CSS ---
+// --- 2. CSS STYLES ---
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
   body { background-color: #f0fdf4; color: #333; padding-bottom: 80px; }
-  .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+  .text-center { text-align: center; }
+  .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
   .text-primary { color: #15803d; } 
   .font-bold { font-weight: 700; }
-  .btn { padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 1rem; }
+  .btn { padding: 14px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 1rem; margin-top: 10px; }
   .btn-primary { background: #15803d; color: white; } 
-  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
-  .btn-danger { color: #d32f2f; background: transparent; }
-  .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; margin-bottom: 12px; }
-  .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #eee; }
+  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; margin-top:0; }
+  .btn-danger { color: #d32f2f; background: transparent; padding: 5px; margin: 0; width: auto; }
+  .btn-link { background: none; border: none; color: #15803d; font-weight: bold; cursor: pointer; text-decoration: underline; margin-top: 15px; display: block; width: 100%; }
+  .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; margin-bottom: 12px; display: block; }
+  .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+  .card-img { width: 100%; height: 150px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; }
+  .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; background: #dcfce7; color: #15803d; }
   @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
 `;
 
+// --- DATA ---
 const MOCK_RESTAURANTS = [
   { id: 1, name: "Burger King", cuisine: "Burgers", rating: 4.2, time: "30 min", price: "₹200", image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500", menu: [{ id: 101, name: "Whopper", price: 349 }] },
   { id: 2, name: "Pizza Hut", cuisine: "Pizza", rating: 4.5, time: "40 min", price: "₹300", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", menu: [{ id: 201, name: "Pepperoni", price: 499 }] }
 ];
 
+// --- APP ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [activeApp, setActiveApp] = useState('landing'); 
@@ -71,16 +79,16 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (initError) { setLoading(false); return; }
+    if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
 
-  const handleLogout = useCallback(async () => { setCart([]); await signOut(auth); setActiveApp('landing'); }, []);
+  const handleLogout = useCallback(async () => { setCart([]); if(auth) await signOut(auth); setActiveApp('landing'); }, []);
   const goBack = useCallback(() => { setActiveApp('landing'); }, []);
   const cartCount = useMemo(() => cart.reduce((a,b)=>a+b.qty,0), [cart]);
 
-  if (initError) return <div className="container" style={{color:'red'}}><h1>Error</h1><p>{initError}</p></div>;
+  if (!db) return <div className="container" style={{color:'red'}}><h1>Config Error</h1><p>Check Vercel Environment Variables.</p></div>;
   if (loading) return <div className="container text-center" style={{marginTop: 100}}>Loading...</div>;
 
   return (
@@ -105,7 +113,7 @@ function LandingPage({ setApp }) {
     return (
         <div style={{ background: 'white', minHeight: '100vh' }}>
             <div className="header flex-between">
-                <div style={{fontWeight:'bold', color:'#15803d', fontSize:'1.2rem'}}>CraveCart FINAL</div>
+                <div style={{fontWeight:'bold', color:'#15803d', fontSize:'1.2rem'}}>CraveCart</div>
                 <div className="flex" style={{gap:10}}>
                     <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
                     <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order</button>
@@ -128,7 +136,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
             <div style={{fontWeight:'bold', textTransform:'capitalize'}}>{activeApp} Portal</div>
             <div style={{display:'flex', gap:10, alignItems:'center'}}>
                 {activeApp === 'customer' && <div><ShoppingBag size={20}/> {cartCount>0 && <b>({cartCount})</b>}</div>}
-                <button onClick={onLogout} className="btn-danger" style={{padding:0, width:'auto'}}>Exit</button>
+                <button onClick={onLogout} className="btn-danger">Exit</button>
             </div>
         </div>
     )
@@ -141,7 +149,6 @@ function SecureAuth({ type, onSuccess, onBack }) {
     const [name, setName] = useState(''); 
     const [error, setError] = useState(''); 
     const [loading, setLoading] = useState(false);
-    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
     const handleAuth = async (e) => {
         e.preventDefault(); setLoading(true); setError("");
@@ -159,7 +166,6 @@ function SecureAuth({ type, onSuccess, onBack }) {
                 }
                 onSuccess({ name: user.displayName || name, uid: user.uid });
             } else {
-                // Partner Login
                 if (type === 'admin' && email === 'admin' && password === 'admin123') { onSuccess({name:'Admin', role:'admin'}); return; }
                 const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), where('username', '==', email), where('password', '==', password));
                 const snap = await getDocs(q);
@@ -183,15 +189,25 @@ function SecureAuth({ type, onSuccess, onBack }) {
                      {error && <p style={{color:'red', marginBottom:10}}>{error}</p>}
                      <button className="btn btn-primary">{loading ? 'Processing...' : 'Submit'}</button>
                  </form>
-                 {type === 'customer' && <button className="btn-link" style={{marginTop:15, width:'100%'}} onClick={()=>setIsSignup(!isSignup)}>{isSignup ? "Have an account? Login" : "New? Create Account"}</button>}
+                 {type === 'customer' && <button className="btn-link" onClick={()=>setIsSignup(!isSignup)}>{isSignup ? "Have an account? Login" : "New? Create Account"}</button>}
              </div>
         </div>
     );
 }
 
 function ProfileSetup({ user, onComplete }) {
-    const [phone, setPhone] = useState(''); const [city, setCity] = useState(''); const [address, setAddress] = useState(''); const [loading, setLoading] = useState(false); const db = getFirestore();
-    const save = async (e) => { e.preventDefault(); setLoading(true); await setDoc(doc(db, 'users', user.uid), { name: user.displayName, email: user.email, phone, city, address }); onComplete({ name: user.displayName, phone, city, address }); };
+    const [phone, setPhone] = useState(''); const [city, setCity] = useState(''); const [address, setAddress] = useState(''); const [loading, setLoading] = useState(false);
+    const save = async (e) => { 
+        e.preventDefault(); setLoading(true); 
+        try {
+            // FIX: Ensure DB is ready and user.uid exists
+            if (!user?.uid || !db) throw new Error("System not ready");
+            await setDoc(doc(db, 'users', user.uid), { name: user.displayName, email: user.email, phone, city, address }); 
+            onComplete({ name: user.displayName, phone, city, address }); 
+        } catch(e) {
+            alert("Error: " + e.message); setLoading(false);
+        }
+    };
     return (
         <div className="modal-overlay"><div className="modal">
             <h2>Complete Profile</h2>
@@ -206,15 +222,23 @@ function ProfileSetup({ user, onComplete }) {
 }
 
 function CustomerPortal({ user, cart, setCart, onBack }) {
-    const [view, setView] = useState('home'); const [profile, setProfile] = useState(null); const [selRest, setSelRest] = useState(null); const [order, setOrder] = useState(null); const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [view, setView] = useState('home'); const [profile, setProfile] = useState(null); const [selRest, setSelRest] = useState(null); const [order, setOrder] = useState(null); 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     
     if (!user) return <SecureAuth type="customer" onSuccess={()=>{}} onBack={onBack}/>;
     
-    useEffect(() => { getDoc(doc(db, 'users', user.uid)).then(s => { if(s.exists()) setProfile(s.data()); else setProfile('new'); }); }, [user]);
+    // FIX: Check for profile safely inside useEffect
+    useEffect(() => { 
+        if(!user?.uid) return;
+        getDoc(doc(db, 'users', user.uid)).then(s => { 
+            if(s.exists()) setProfile(s.data()); else setProfile('new'); 
+        }).catch(e => console.log("Profile check failed", e));
+    }, [user]);
+
     useEffect(() => { if (order?.id) onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', order.id), s => { if(s.exists()) setOrder(prev => ({...prev, ...s.data()})); }); }, [order?.id]);
 
     if (profile === 'new') return <ProfileSetup user={user} onComplete={setProfile} />;
-    if (!profile) return <div className="container text-center" style={{marginTop:50}}>Loading Profile...</div>;
+    if (!profile) return <div className="container text-center" style={{marginTop:50}}>Loading...</div>;
 
     const placeOrder = async () => {
         const total = cart.reduce((s,i)=>s+(i.price*i.qty),0) + 40;
@@ -231,7 +255,7 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
                 <div className="grid">{MOCK_RESTAURANTS.map(r=><div key={r.id} className="card" onClick={()=>{setSelRest(r);setView('rest')}}><img src={r.image} className="card-img"/><b>{r.name}</b></div>)}</div>
             </div>)}
             {view === 'rest' && selRest && (<div><button onClick={()=>setView('home')} className="btn-secondary" style={{width:'auto', marginBottom:10}}>Back</button><h1>{selRest.name}</h1>
-                <div className="grid">{selRest.menu.map(i=><div key={i.id} className="card flex-between"><div><b>{i.name}</b><br/>₹{i.price}</div><button className="btn-primary" style={{width:'auto', padding:'5px 10px'}} onClick={()=>setCart([...cart, {...i, qty:1}])}>Add</button></div>)}</div>
+                <div className="grid">{selRest.menu.map(i=><div key={i.id} className="card flex-between"><div><b>{i.name}</b><br/>₹{i.price}</div><button className="btn-primary" style={{width:'auto', padding:'5px 10px', margin:0}} onClick={()=>setCart([...cart, {...i, qty:1}])}>Add</button></div>)}</div>
                 {cart.length>0 && <button className="btn-primary" style={{position:'fixed', bottom:10, left:10, width:'95%'}} onClick={()=>setView('cart')}>Cart ({cart.length})</button>}
             </div>)}
             {view === 'cart' && (<div><button onClick={()=>setView('rest')} className="btn-secondary" style={{width:'auto', marginBottom:10}}>Back</button><h2>Checkout</h2>
@@ -244,21 +268,20 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     )
 }
 
-// --- PARTNER PORTALS (Minimal for brevity) ---
 function RestaurantPortal({ user, onBack }) {
-    const [auth, setAuth] = useState(false); const [orders, setOrders] = useState([]); const db=getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [auth, setAuth] = useState(false); const [orders, setOrders] = useState([]); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     useEffect(() => { const q=query(collection(db,'artifacts',appId,'public','data','orders'),orderBy('createdAt','desc')); return onSnapshot(q,s=>setOrders(s.docs.map(d=>({id:d.id,...d.data()})))); }, []);
     if(!auth) return <SecureAuth type="restaurant" onSuccess={()=>setAuth(true)} onBack={onBack}/>;
     return <div className="grid">{orders.map(o=><div key={o.id} className="card"><b>#{o.id.slice(0,4)}</b>: {o.status} {o.status==='placed'&&<button className="btn-primary" onClick={()=>updateDoc(doc(db,'artifacts',appId,'public','data','orders',o.id),{status:'cooking'})}>Accept</button>}</div>)}</div>;
 }
 function DriverPortal({ user, onBack }) {
-    const [auth, setAuth] = useState(false); const [jobs, setJobs] = useState([]); const db=getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [auth, setAuth] = useState(false); const [jobs, setJobs] = useState([]); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     useEffect(() => { const q=query(collection(db,'artifacts',appId,'public','data','orders'),orderBy('createdAt','desc')); return onSnapshot(q,s=>setJobs(s.docs.map(d=>({id:d.id,...d.data()})).filter(o=>o.status==='cooking' && !o.driverId))); }, []);
     if(!auth) return <SecureAuth type="driver" onSuccess={()=>setAuth(true)} onBack={onBack}/>;
     return <div className="grid">{jobs.map(o=><div key={o.id} className="card"><b>{o.restaurantName}</b><br/>{o.address}<button className="btn-primary" onClick={()=>updateDoc(doc(db,'artifacts',appId,'public','data','orders',o.id),{driverId:'Me',driverName:'Driver X',status:'out_for_delivery'})}>Accept</button></div>)}</div>;
 }
 function AdminPortal({ user, onBack }) {
-    const [auth, setAuth] = useState(false); const [form,setForm]=useState({}); const db=getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [auth, setAuth] = useState(false); const [form,setForm]=useState({}); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const create = async (e) => { e.preventDefault(); await addDoc(collection(db,'artifacts',appId,'public','data','partners'), form); alert("Created"); };
     if(!auth) return <SecureAuth type="admin" onSuccess={()=>setAuth(true)} onBack={onBack}/>;
     return <div className="card"><h3>Create Partner</h3><input className="input" placeholder="User" onChange={e=>setForm({...form,username:e.target.value})}/><input className="input" placeholder="Pass" onChange={e=>setForm({...form,password:e.target.value})}/><select className="input" onChange={e=>setForm({...form,role:e.target.value})}><option>restaurant</option><option>driver</option></select><button className="btn-primary" onClick={create}>Add</button></div>;
