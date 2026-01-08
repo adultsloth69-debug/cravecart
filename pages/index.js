@@ -5,7 +5,7 @@ import {
   CheckCircle, Utensils, ArrowLeft, X, CreditCard, Bike, 
   Package, Home, Navigation, DollarSign, Activity, BarChart3,
   Briefcase, ChevronRight, LogOut, ShieldCheck, Globe, Menu,
-  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Phone, MessageSquare, QrCode, Banknote, Mail
+  ChefHat, Smartphone, TrendingUp, Users, Lock, Key, Mail, Banknote
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
@@ -38,41 +38,47 @@ try {
     initError = e.message;
 }
 
-// --- 2. CSS STYLES (BLUE THEME) ---
+// --- 2. CSS STYLES (GREEN THEME v4) ---
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  body { background-color: #f0f4f8; color: #333; padding-bottom: 80px; }
+  body { background-color: #f0fdf4; color: #333; padding-bottom: 80px; } /* Light Green BG */
   .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .text-center { text-align: center; }
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  .text-primary { color: #2563eb; } 
-  .text-green { color: #2e7d32; }
+  
+  .text-primary { color: #15803d; } /* Green */
   .text-gray { color: #666; font-size: 0.9rem; }
   .font-bold { font-weight: 700; }
   
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
-  .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); } 
+  
+  .btn-primary { background: #15803d; color: white; box-shadow: 0 4px 10px rgba(21, 128, 61, 0.3); } /* Green Button */
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .btn-link { background: none; border: none; color: #2563eb; font-weight: bold; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
+  .btn-link { background: none; border: none; color: #15803d; font-weight: bold; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
 
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
-  .input:focus { border-color: #2563eb; ring: 2px solid #bfdbfe; }
+  .input:focus { border-color: #15803d; ring: 2px solid #bbf7d0; }
+  
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
   .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
+  
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
-  .logo { font-size: 1.5rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 8px; }
+  .logo { font-size: 1.5rem; font-weight: 800; color: #14532d; display: flex; align-items: center; gap: 8px; }
+  
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
-  .badge-blue { background: #dbeafe; color: #1e40af; }
-  .badge-green { background: #e8f5e9; color: #2e7d32; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  
   .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
-  .portal-card:hover { border-color: #2563eb; transform: translateY(-2px); }
+  .portal-card:hover { border-color: #15803d; transform: translateY(-2px); }
+  
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  
   @media (min-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -137,7 +143,7 @@ function LandingPage({ setApp }) {
     return (
         <div style={{ background: 'white', minHeight: '100vh' }}>
             <div className="header flex-between">
-                <div className="logo"><Utensils color="#2563eb"/> CraveCart</div>
+                <div className="logo"><Utensils color="#15803d"/> CraveCart <span style={{fontSize:'0.7rem', color:'#999', marginLeft:5}}>v4 (Email)</span></div>
                 <div className="flex" style={{gap:10}}>
                     <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
                     <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order Food</button>
@@ -148,7 +154,7 @@ function LandingPage({ setApp }) {
                 <p className="text-gray" style={{fontSize: '1.2rem', marginBottom: 40}}>The complete ecosystem for Customers, Restaurants, Drivers, and Owners.</p>
                 <div className="grid grid-3">
                     <button onClick={() => setApp('restaurant')} className="portal-card card">
-                        <div className="badge-blue" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
+                        <div className="badge-green" style={{width: 50, height: 50, display:'flex', alignItems:'center', justifyContent:'center', borderRadius: 12, marginBottom: 16}}><ChefHat size={24}/></div>
                         <h3>Restaurant Partner</h3>
                         <p className="text-gray">Manage orders & menu</p>
                     </button>
@@ -172,7 +178,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     return (
         <div className="header flex-between">
             <div className="logo" style={{fontSize: '1.2rem'}}>
-                {activeApp === 'customer' ? <ShoppingBag color="#2563eb"/> : activeApp === 'restaurant' ? <ChefHat color="#2e7d32"/> : activeApp === 'driver' ? <Bike color="#1565c0"/> : <ShieldCheck/>}
+                {activeApp === 'customer' ? <ShoppingBag color="#15803d"/> : activeApp === 'restaurant' ? <ChefHat color="#15803d"/> : activeApp === 'driver' ? <Bike color="#1565c0"/> : <ShieldCheck/>}
                 <span style={{textTransform:'capitalize'}}>{activeApp} Portal</span>
             </div>
             <div className="flex" style={{gap: 16}}>
@@ -188,7 +194,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH COMPONENT (EMAIL + PARTNER LOGIN) ---
+// --- SECURE AUTH COMPONENT (EMAIL ONLY) ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [isSignup, setIsSignup] = useState(false);
     const [identifier, setIdentifier] = useState(''); 
@@ -203,6 +209,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
         e.preventDefault();
         setLoading(true);
         setError("");
+        
         try {
             let user;
             if (isSignup) {
@@ -252,7 +259,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  
                  <div className="text-center" style={{marginBottom: 24}}>
                      <h2>{type === 'customer' ? (isSignup ? 'Create Account' : 'Welcome Back') : 'Secure Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? (isSignup ? 'Sign up to order food' : 'Login to your account') : 'Enter Credentials'}</p>
+                     <p className="text-gray">{type === 'customer' ? (isSignup ? 'Sign up to order food' : 'Login to your account') : 'Enter Partner Credentials'}</p>
                  </div>
 
                  {type === 'customer' ? ( 
@@ -286,7 +293,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
     );
 }
 
-// --- NEW COMPONENT: PROFILE SETUP ---
+// --- PROFILE SETUP ---
 function ProfileSetup({ user, onComplete }) {
     const [phone, setPhone] = useState('');
     const [city, setCity] = useState('');
@@ -347,8 +354,7 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     const [selectedRestaurant, setSelectedRestaurant] = useState(null); 
     const [activeOrder, setActiveOrder] = useState(null); 
     const [paymentMethod, setPaymentMethod] = useState('upi'); 
-    const db = getFirestore(); 
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
     const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
 
@@ -368,31 +374,15 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     if (!userProfile) return <ProfileSetup user={user} onComplete={(p) => setUserProfile(p)} />;
 
     useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
-    
-    const placeOrder = async () => { 
-        const order = { 
-            items: cart, total: grandTotal, 
-            restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, 
-            userId: user.uid, status: 'placed', createdAt: serverTimestamp(), 
-            customerName: userProfile.name, customerPhone: userProfile.phone, 
-            address: userProfile.address + ", " + userProfile.city, 
-            driverId: null, paymentMethod: paymentMethod 
-        }; 
-        const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); 
-        setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); 
-    };
-    
+    const placeOrder = async () => { const order = { items: cart, total: grandTotal, restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: userProfile.name, customerPhone: userProfile.phone, address: userProfile.address + ", " + userProfile.city, driverId: null, paymentMethod: paymentMethod }; const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); };
     const addToCart = useCallback((item, rId) => { setCart(p => { if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; } const ex = p.find(i=>i.id===item.id); return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}]; }); }, []);
 
     return (
         <div>
             {view === 'home' && (
                 <>
-                    <div style={{marginBottom: 20}}>
-                        <h2>Hello, {userProfile.name.split(' ')[0]} 👋</h2>
-                        <p className="text-gray" style={{fontSize:'0.9rem'}}>Delivering to <b>{userProfile.city}</b></p>
-                    </div>
-                    {activeOrder && (<div onClick={() => setView('tracking')} className="card" style={{background:'#1e40af', color:'white', display:'flex', justifyContent:'space-between', cursor:'pointer'}}><div><b>Order in Progress</b><br/><small>Tap to track</small></div><ChevronRight/></div>)}
+                    <div style={{marginBottom: 20}}><h2>Hello, {userProfile.name.split(' ')[0]} 👋</h2><p className="text-gray" style={{fontSize:'0.9rem'}}>Delivering to <b>{userProfile.city}</b></p></div>
+                    {activeOrder && (<div onClick={() => setView('tracking')} className="card" style={{background:'#15803d', color:'white', display:'flex', justifyContent:'space-between', cursor:'pointer'}}><div><b>Order in Progress</b><br/><small>Tap to track</small></div><ChevronRight/></div>)}
                     <h2 style={{marginBottom: 16}}>Restaurants</h2>
                     <div className="grid">
                         {MOCK_RESTAURANTS.map(r => (
@@ -410,19 +400,9 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
             {view === 'restaurant' && selectedRestaurant && (
                 <div>
                     <button onClick={() => setView('home')} className="btn btn-secondary" style={{marginBottom: 16, width: 'auto'}}><ArrowLeft size={16}/> Back</button>
-                    <div className="card">
-                        <h1>{selectedRestaurant.name}</h1>
-                        <p className="text-gray">{selectedRestaurant.cuisine}</p>
-                    </div>
+                    <div className="card"><h1>{selectedRestaurant.name}</h1><p className="text-gray">{selectedRestaurant.cuisine}</p></div>
                     <h3>Menu</h3>
-                    <div className="grid" style={{marginTop: 16}}>
-                        {selectedRestaurant.menu.map(item => (
-                            <div key={item.id} className="card flex-between" style={{marginBottom:0}}>
-                                <div><b>{item.name}</b><br/><span className="text-gray">₹{item.price}</span></div>
-                                <button onClick={()=>addToCart(item, selectedRestaurant.id)} className="btn-icon btn-primary"><Plus size={16}/></button>
-                            </div>
-                        ))}
-                    </div>
+                    <div className="grid" style={{marginTop: 16}}>{selectedRestaurant.menu.map(item => (<div key={item.id} className="card flex-between" style={{marginBottom:0}}><div><b>{item.name}</b><br/><span className="text-gray">₹{item.price}</span></div><button onClick={()=>addToCart(item, selectedRestaurant.id)} className="btn-icon btn-primary"><Plus size={16}/></button></div>))}</div>
                     {cart.length > 0 && <button onClick={()=>setView('cart')} className="btn btn-primary" style={{position:'fixed', bottom: 20, left: '5%', width: '90%', boxShadow: '0 5px 20px rgba(0,0,0,0.3)'}}>View Cart • ₹{grandTotal.toFixed(2)}</button>}
                 </div>
             )}
@@ -430,32 +410,15 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
                 <div className="card">
                     <button onClick={() => setView('restaurant')} style={{background:'none', border:'none', marginBottom: 16, cursor:'pointer'}}><ArrowLeft/></button>
                     <h2>Checkout</h2>
-                    <div style={{margin: '20px 0'}}>
-                        {cart.map(i => (<div key={i.id} className="flex-between" style={{marginBottom: 10}}><span>{i.qty}x {i.name}</span><span>₹{i.price*i.qty}</span></div>))}
-                        <hr style={{margin: '16px 0', border:'none', borderTop:'1px dashed #ddd'}}/>
-                        <div className="flex-between"><b>Total</b><b>₹{grandTotal.toFixed(2)}</b></div>
-                    </div>
-                    <div style={{background:'#f8f9fa', padding:16, borderRadius:12, marginBottom: 20}}>
-                        <div style={{fontSize:'0.8rem', color:'#666', fontWeight:'bold', marginBottom:4}}>DELIVER TO</div>
-                        <div>{userProfile.address}</div>
-                        <div>{userProfile.city}</div>
-                        <div>Phone: {userProfile.phone}</div>
-                    </div>
-                    <div style={{marginBottom: 20}}>
-                        <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} style={{marginRight: 10}}/> UPI (Scan QR)</label>
-                        <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} style={{marginRight: 10}}/> Cash on Delivery</label>
-                    </div>
+                    <div style={{margin: '20px 0'}}>{cart.map(i => (<div key={i.id} className="flex-between" style={{marginBottom: 10}}><span>{i.qty}x {i.name}</span><span>₹{i.price*i.qty}</span></div>))}<hr style={{margin: '16px 0', border:'none', borderTop:'1px dashed #ddd'}}/><div className="flex-between"><b>Total</b><b>₹{grandTotal.toFixed(2)}</b></div></div>
+                    <div style={{background:'#f8f9fa', padding:16, borderRadius:12, marginBottom: 20}}><div style={{fontSize:'0.8rem', color:'#666', fontWeight:'bold', marginBottom:4}}>DELIVER TO</div><div>{userProfile.address}</div><div>{userProfile.city}</div><div>Phone: {userProfile.phone}</div></div>
+                    <div style={{marginBottom: 20}}><label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} style={{marginRight: 10}}/> UPI (Scan QR)</label><label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} style={{marginRight: 10}}/> Cash on Delivery</label></div>
                     {paymentMethod==='upi' && <div className="text-center" style={{marginBottom: 20}}><img src={qrCodeUrl} style={{width: 150}}/><p style={{fontSize: 12}}>UPI: {upiId}</p></div>}
                     <button onClick={placeOrder} className="btn btn-primary">Place Order</button>
                 </div>
             )}
             {view === 'tracking' && activeOrder && (
-                <div className="card text-center" style={{padding: 40}}>
-                    <h2>Order Status</h2>
-                    <div style={{fontSize: '2rem', margin: '20px 0', textTransform:'capitalize', color:'#2563eb'}}>{activeOrder.status.replace(/_/g, ' ')}</div>
-                    <p className="text-gray">Tracking ID: #{activeOrder.id.slice(0,6)}</p>
-                    <button onClick={()=>{setActiveOrder(null);setView('home')}} className="btn btn-secondary" style={{marginTop: 20}}>Place New Order</button>
-                </div>
+                <div className="card text-center" style={{padding: 40}}><h2>Order Status</h2><div style={{fontSize: '2rem', margin: '20px 0', textTransform:'capitalize', color:'#15803d'}}>{activeOrder.status.replace(/_/g, ' ')}</div><p className="text-gray">Tracking ID: #{activeOrder.id.slice(0,6)}</p><button onClick={()=>{setActiveOrder(null);setView('home')}} className="btn btn-secondary" style={{marginTop: 20}}>Place New Order</button></div>
             )}
         </div>
     );
@@ -467,21 +430,7 @@ function RestaurantPortal({ user, onBack }) {
     const update = async (id, s) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { status: s });
     if (!isLoggedIn) return <SecureAuth type="restaurant" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
     return (
-        <div className="grid">
-            <h2>Incoming Orders</h2>
-            {orders.map(o => (
-                <div key={o.id} className="card">
-                    <div className="flex-between">
-                        <div><b>#{o.id.slice(0,5)}</b> • {o.customerName}</div>
-                        <span className="badge badge-blue">{o.status}</span>
-                    </div>
-                    <div style={{margin: '10px 0', fontSize: '0.9rem', color: '#666'}}>{o.paymentMethod === 'cod' ? '💵 Cash on Delivery' : '✅ Paid Online'}</div>
-                    <div style={{margin: '5px 0', fontSize: '0.8rem'}}>📍 {o.address}</div>
-                    <div style={{fontSize: '0.8rem'}}>📞 {o.customerPhone}</div>
-                    {o.status==='placed' && <button onClick={()=>update(o.id,'cooking')} className="btn btn-primary" style={{marginTop: 10}}>Accept Order</button>}
-                </div>
-            ))}
-        </div>
+        <div className="grid"><h2>Incoming Orders</h2>{orders.map(o => (<div key={o.id} className="card"><div className="flex-between"><div><b>#{o.id.slice(0,5)}</b> • {o.customerName}</div><span className="badge badge-green">{o.status}</span></div><div style={{margin: '10px 0', fontSize: '0.9rem', color: '#666'}}>{o.paymentMethod === 'cod' ? '💵 Cash on Delivery' : '✅ Paid Online'}</div><div style={{margin: '5px 0', fontSize: '0.8rem'}}>📍 {o.address}</div><div style={{fontSize: '0.8rem'}}>📞 {o.customerPhone}</div>{o.status==='placed' && <button onClick={()=>update(o.id,'cooking')} className="btn btn-primary" style={{marginTop: 10}}>Accept Order</button>}</div>))}</div>
     )
 }
 
@@ -491,19 +440,7 @@ function DriverPortal({ user, onBack }) {
     const accept = async (id) => await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders', id), { driverId: user.uid, driverName: user.displayName });
     if (!isLoggedIn) return <SecureAuth type="driver" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
     return (
-        <div>
-            <h2>Available Jobs</h2>
-            <div className="grid">
-                {available.map(o=>(
-                    <div key={o.id} className="card">
-                        <div className="flex-between"><b>{o.restaurantName}</b><b className="text-green">₹{o.total}</b></div>
-                        <p className="text-gray" style={{margin:'10px 0'}}>{o.address}</p>
-                        <p className="text-gray" style={{fontSize:'0.8rem'}}>📞 {o.customerPhone}</p>
-                        <button onClick={()=>accept(o.id)} className="btn btn-primary">Accept Job</button>
-                    </div>
-                ))}
-            </div>
-        </div>
+        <div><h2>Available Jobs</h2><div className="grid">{available.map(o=>(<div key={o.id} className="card"><div className="flex-between"><b>{o.restaurantName}</b><b className="text-green">₹{o.total}</b></div><p className="text-gray" style={{margin:'10px 0'}}>{o.address}</p><p className="text-gray" style={{fontSize:'0.8rem'}}>📞 {o.customerPhone}</p><button onClick={()=>accept(o.id)} className="btn btn-primary">Accept Job</button></div>))}</div></div>
     )
 }
 
@@ -514,24 +451,7 @@ function AdminPortal({ user, onBack }) {
     const create = async (e) => { e.preventDefault(); await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'partners'), { name:form.name, username:form.user, password:form.pass, role:form.role }); alert("Created"); };
     if (!isLoggedIn) return <SecureAuth type="admin" onSuccess={(u) => setIsLoggedIn(true)} onBack={onBack} />;
     return (
-        <div>
-            <h2>Admin Dashboard</h2>
-            <div className="grid grid-3" style={{margin: '20px 0'}}>
-                <div className="card text-center"><h3>Revenue</h3><div className="text-green" style={{fontSize: '1.5rem'}}>₹{orders.reduce((s,o)=>s+(o.total||0),0).toFixed(2)}</div></div>
-                <div className="card text-center"><h3>Orders</h3><div style={{fontSize: '1.5rem'}}>{orders.length}</div></div>
-            </div>
-            
-            <div className="card">
-                <h3>Add New Partner</h3>
-                <form onSubmit={create} style={{display:'grid', gap: 10, marginTop: 10}}>
-                    <input className="input" placeholder="Business/Driver Name" onChange={e=>setForm({...form,name:e.target.value})}/>
-                    <input className="input" placeholder="Username" onChange={e=>setForm({...form,user:e.target.value})}/>
-                    <input className="input" placeholder="Password" onChange={e=>setForm({...form,pass:e.target.value})}/>
-                    <select className="input" onChange={e=>setForm({...form,role:e.target.value})}><option value="restaurant">Restaurant</option><option value="driver">Driver</option></select>
-                    <button className="btn btn-primary">Create Account</button>
-                </form>
-            </div>
-        </div>
+        <div><h2>Admin Dashboard</h2><div className="grid grid-3" style={{margin: '20px 0'}}><div className="card text-center"><h3>Revenue</h3><div className="text-green" style={{fontSize: '1.5rem'}}>₹{orders.reduce((s,o)=>s+(o.total||0),0).toFixed(2)}</div></div><div className="card text-center"><h3>Orders</h3><div style={{fontSize: '1.5rem'}}>{orders.length}</div></div></div><div className="card"><h3>Add New Partner</h3><form onSubmit={create} style={{display:'grid', gap: 10, marginTop: 10}}><input className="input" placeholder="Business/Driver Name" onChange={e=>setForm({...form,name:e.target.value})}/><input className="input" placeholder="Username" onChange={e=>setForm({...form,user:e.target.value})}/><input className="input" placeholder="Password" onChange={e=>setForm({...form,pass:e.target.value})}/><select className="input" onChange={e=>setForm({...form,role:e.target.value})}><option value="restaurant">Restaurant</option><option value="driver">Driver</option></select><button className="btn btn-primary">Create Account</button></form></div></div>
     )
 }
 
