@@ -13,7 +13,7 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, onSnapshot, 
-  orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc 
+  orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc, getDoc, setDoc 
 } from 'firebase/firestore';
 
 // --- 1. FIREBASE CONFIGURATION ---
@@ -42,15 +42,13 @@ try {
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   body { background-color: #f0f4f8; color: #333; padding-bottom: 80px; }
-  
   .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .text-center { text-align: center; }
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
   
-  /* --- BLUE COLORS HERE --- */
-  .text-primary { color: #2563eb; } /* Blue */
+  .text-primary { color: #2563eb; } 
   .text-green { color: #2e7d32; }
   .text-gray { color: #666; font-size: 0.9rem; }
   .font-bold { font-weight: 700; }
@@ -58,7 +56,7 @@ const cssStyles = `
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
   
-  .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); } /* Blue Button */
+  .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); } 
   .btn-google { background: #fff; color: #333; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 16px; }
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
@@ -104,10 +102,6 @@ export default function App() {
 
   useEffect(() => {
     if (initError) { setLoading(false); return; }
-    const initAuth = async () => {
-        // No anonymous login for users, wait for Google
-    };
-    initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
@@ -151,7 +145,7 @@ function LandingPage({ setApp }) {
     return (
         <div style={{ background: 'white', minHeight: '100vh' }}>
             <div className="header flex-between">
-                <div className="logo"><Utensils color="#2563eb"/> CraveCart <span style={{fontSize:'0.8rem', color:'#ccc', marginLeft:5}}>v3.0</span></div>
+                <div className="logo"><Utensils color="#2563eb"/> CraveCart</div>
                 <div className="flex" style={{gap:10}}>
                     <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
                     <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order Food</button>
@@ -202,7 +196,7 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH COMPONENT (GOOGLE LOGIN) ---
+// --- SECURE AUTH & PROFILE SETUP ---
 function SecureAuth({ type, onSuccess, onBack }) {
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
@@ -283,24 +277,129 @@ function SecureAuth({ type, onSuccess, onBack }) {
     );
 }
 
+// --- NEW COMPONENT: PROFILE SETUP ---
+function ProfileSetup({ user, onComplete }) {
+    const [name, setName] = useState(user.displayName || '');
+    const [phone, setPhone] = useState('');
+    const [city, setCity] = useState('');
+    const [address, setAddress] = useState('');
+    const [loading, setLoading] = useState(false);
+    const db = getFirestore();
+
+    const saveProfile = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await setDoc(doc(db, 'users', user.uid), {
+                name,
+                phone,
+                city,
+                address,
+                email: user.email,
+                createdAt: serverTimestamp()
+            });
+            // Also update Auth profile just in case
+            await updateProfile(user, { displayName: name });
+            onComplete({ name, phone, city, address });
+        } catch (error) {
+            alert("Error saving profile: " + error.message);
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal">
+                <div className="text-center mb-6">
+                    <h2>Complete Profile</h2>
+                    <p className="text-gray">Please provide details to continue</p>
+                </div>
+                <form onSubmit={saveProfile}>
+                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Full Name</label>
+                    <input className="input" value={name} onChange={e=>setName(e.target.value)} required />
+                    
+                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Phone Number</label>
+                    <input className="input" type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+91 98765 43210" required />
+                    
+                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>City</label>
+                    <input className="input" value={city} onChange={e=>setCity(e.target.value)} placeholder="e.g. Mumbai" required />
+                    
+                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Full Address</label>
+                    <textarea className="input" rows="2" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Flat No, Building, Street" required />
+                    
+                    <button className="btn btn-primary" style={{marginTop: 10}} disabled={loading}>
+                        {loading ? 'Saving...' : 'Save & Continue'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    )
+}
+
 // --- PORTALS ---
 function CustomerPortal({ user, cart, setCart, onBack }) {
-    const [view, setView] = useState('home'); const [selectedRestaurant, setSelectedRestaurant] = useState(null); const [activeOrder, setActiveOrder] = useState(null); const [deliveryAddress, setDeliveryAddress] = useState(''); const [paymentMethod, setPaymentMethod] = useState('upi'); 
-    const db = getFirestore(); const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const [view, setView] = useState('home'); 
+    const [profileChecked, setProfileChecked] = useState(false);
+    const [userProfile, setUserProfile] = useState(null);
+    
+    const [selectedRestaurant, setSelectedRestaurant] = useState(null); 
+    const [activeOrder, setActiveOrder] = useState(null); 
+    const [paymentMethod, setPaymentMethod] = useState('upi'); 
+    
+    const db = getFirestore(); 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    
     const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
     const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
 
-    // Only show login screen if user is NOT signed in or is Anonymous
+    // 1. Auth Check
     if (!user || user.isAnonymous) return <SecureAuth type="customer" onSuccess={(u) => {}} onBack={onBack} />;
 
+    // 2. Profile Check (New)
+    useEffect(() => {
+        const checkProfile = async () => {
+            const docRef = doc(db, 'users', user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setUserProfile(docSnap.data());
+            }
+            setProfileChecked(true);
+        };
+        checkProfile();
+    }, [user]);
+
+    if (!profileChecked) return <div className="container text-center" style={{marginTop:100}}>Checking Profile...</div>;
+    if (!userProfile) return <ProfileSetup user={user} onComplete={(p) => setUserProfile(p)} />;
+
+    // ... Regular Customer Logic ...
+    // Note: I removed the deliveryAddress state because now we use userProfile.address by default
+    
     useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
-    const placeOrder = async () => { if (!deliveryAddress) { alert("Address required"); return; } const order = { items: cart, total: grandTotal, restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, userId: user.uid, status: 'placed', createdAt: serverTimestamp(), customerName: user.displayName || 'Customer', address: deliveryAddress, driverId: null, paymentMethod: paymentMethod }; const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); };
+    
+    const placeOrder = async () => { 
+        const order = { 
+            items: cart, total: grandTotal, 
+            restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, 
+            userId: user.uid, status: 'placed', createdAt: serverTimestamp(), 
+            customerName: userProfile.name, // Use Profile Name
+            customerPhone: userProfile.phone, // Use Profile Phone
+            address: userProfile.address + ", " + userProfile.city, // Use Profile Address
+            driverId: null, paymentMethod: paymentMethod 
+        }; 
+        const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); 
+        setCart([]); setActiveOrder({id: res.id, ...order}); setView('tracking'); 
+    };
+    
     const addToCart = useCallback((item, rId) => { setCart(p => { if (p.length > 0 && p[0].restaurantId !== rId) { if(!confirm("Start a new basket?")) return p; return [{...item,qty:1,restaurantId:rId}]; } const ex = p.find(i=>i.id===item.id); return ex ? p.map(i=>i.id===item.id?{...i,qty:i.qty+1}:i) : [...p,{...item,qty:1,restaurantId:rId}]; }); }, []);
 
     return (
         <div>
             {view === 'home' && (
                 <>
+                    <div style={{marginBottom: 20}}>
+                        <h2>Hello, {userProfile.name.split(' ')[0]} 👋</h2>
+                        <p className="text-gray" style={{fontSize:'0.9rem'}}>Delivering to <b>{userProfile.city}</b></p>
+                    </div>
                     {activeOrder && (<div onClick={() => setView('tracking')} className="card" style={{background:'#1e40af', color:'white', display:'flex', justifyContent:'space-between', cursor:'pointer'}}><div><b>Order in Progress</b><br/><small>Tap to track</small></div><ChevronRight/></div>)}
                     <h2 style={{marginBottom: 16}}>Restaurants</h2>
                     <div className="grid">
@@ -344,7 +443,14 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
                         <hr style={{margin: '16px 0', border:'none', borderTop:'1px dashed #ddd'}}/>
                         <div className="flex-between"><b>Total</b><b>₹{grandTotal.toFixed(2)}</b></div>
                     </div>
-                    <textarea value={deliveryAddress} onChange={e=>setDeliveryAddress(e.target.value)} placeholder="Delivery Address..." className="input" rows="2" />
+                    
+                    <div style={{background:'#f8f9fa', padding:16, borderRadius:12, marginBottom: 20}}>
+                        <div style={{fontSize:'0.8rem', color:'#666', fontWeight:'bold', marginBottom:4}}>DELIVER TO</div>
+                        <div>{userProfile.address}</div>
+                        <div>{userProfile.city}</div>
+                        <div>Phone: {userProfile.phone}</div>
+                    </div>
+
                     <div style={{marginBottom: 20}}>
                         <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} style={{marginRight: 10}}/> UPI (Scan QR)</label>
                         <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} style={{marginRight: 10}}/> Cash on Delivery</label>
@@ -380,6 +486,8 @@ function RestaurantPortal({ user, onBack }) {
                         <span className="badge badge-blue">{o.status}</span>
                     </div>
                     <div style={{margin: '10px 0', fontSize: '0.9rem', color: '#666'}}>{o.paymentMethod === 'cod' ? '💵 Cash on Delivery' : '✅ Paid Online'}</div>
+                    <div style={{margin: '5px 0', fontSize: '0.8rem'}}>📍 {o.address}</div>
+                    <div style={{fontSize: '0.8rem'}}>📞 {o.customerPhone}</div>
                     {o.status==='placed' && <button onClick={()=>update(o.id,'cooking')} className="btn btn-primary" style={{marginTop: 10}}>Accept Order</button>}
                 </div>
             ))}
@@ -400,6 +508,7 @@ function DriverPortal({ user, onBack }) {
                     <div key={o.id} className="card">
                         <div className="flex-between"><b>{o.restaurantName}</b><b className="text-green">₹{o.total}</b></div>
                         <p className="text-gray" style={{margin:'10px 0'}}>{o.address}</p>
+                        <p className="text-gray" style={{fontSize:'0.8rem'}}>📞 {o.customerPhone}</p>
                         <button onClick={()=>accept(o.id)} className="btn btn-primary">Accept Job</button>
                     </div>
                 ))}
