@@ -16,9 +16,8 @@ import {
   orderBy, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc, getDoc, setDoc 
 } from 'firebase/firestore';
 
-// --- 1. GLOBAL FIREBASE INIT (DO NOT TOUCH) ---
+// --- GLOBAL INIT ---
 let app, auth, db;
-
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -30,29 +29,26 @@ const firebaseConfig = {
 
 try {
     if (firebaseConfig.apiKey) {
-        // Singleton Pattern: Only initialize if not already running
         app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         auth = getAuth(app);
         db = getFirestore(app);
     }
-} catch (e) {
-    console.error("Firebase Init Failed", e);
-}
+} catch (e) { console.error(e); }
 
-// --- 2. STYLES ---
+// --- STYLES (PURPLE THEME v6 - Visual Check) ---
 const cssStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-  body { background-color: #f0fdf4; color: #333; padding-bottom: 80px; }
+  body { background-color: #faf5ff; color: #333; padding-bottom: 80px; } /* Purple BG */
   .container { max-width: 600px; margin: 0 auto; padding: 16px; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  .text-primary { color: #15803d; } 
+  .text-primary { color: #7e22ce; } /* Purple */
   .font-bold { font-weight: 700; }
-  .btn { padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 1rem; margin-top: 10px; }
-  .btn-primary { background: #15803d; color: white; } 
-  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; margin-top: 0; }
+  .btn { padding: 14px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 100%; font-size: 1rem; margin-top: 10px; }
+  .btn-primary { background: #7e22ce; color: white; } 
+  .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; margin-top:0; }
   .btn-danger { color: #d32f2f; background: transparent; padding: 0; width: auto; margin:0; }
-  .btn-link { background: none; border: none; color: #15803d; font-weight: bold; cursor: pointer; text-decoration: underline; margin-top: 15px; display: block; width: 100%; }
+  .btn-link { background: none; border: none; color: #7e22ce; font-weight: bold; cursor: pointer; text-decoration: underline; margin-top: 15px; display: block; width: 100%; }
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; margin-bottom: 12px; display: block; }
   .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
@@ -61,13 +57,11 @@ const cssStyles = `
   @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
 `;
 
-// --- DATA ---
 const MOCK_RESTAURANTS = [
   { id: 1, name: "Burger King", cuisine: "Burgers", rating: 4.2, time: "30 min", price: "₹200", image: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=500", menu: [{ id: 101, name: "Whopper", price: 349 }] },
   { id: 2, name: "Pizza Hut", cuisine: "Pizza", rating: 4.5, time: "40 min", price: "₹300", image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500", menu: [{ id: 201, name: "Pepperoni", price: 499 }] }
 ];
 
-// --- APP ---
 export default function App() {
   const [user, setUser] = useState(null);
   const [activeApp, setActiveApp] = useState('landing'); 
@@ -84,8 +78,8 @@ export default function App() {
   const goBack = useCallback(() => { setActiveApp('landing'); }, []);
   const cartCount = useMemo(() => cart.reduce((a,b)=>a+b.qty,0), [cart]);
 
-  if (!db) return <div className="container" style={{color:'red'}}><h1>Error</h1><p>Database not connected. Check Vercel Keys.</p></div>;
-  if (loading) return <div className="container text-center" style={{marginTop: 100}}>Loading...</div>;
+  if (!db) return <div className="container" style={{color:'red'}}><h1>Error</h1><p>Database not connected.</p></div>;
+  if (loading) return <div className="container text-center" style={{marginTop: 100}}>Loading v6...</div>;
 
   return (
     <>
@@ -109,14 +103,14 @@ function LandingPage({ setApp }) {
     return (
         <div style={{ background: 'white', minHeight: '100vh' }}>
             <div className="header flex-between">
-                <div style={{fontWeight:'bold', color:'#15803d', fontSize:'1.2rem'}}>CraveCart</div>
+                <div style={{fontWeight:'bold', color:'#7e22ce', fontSize:'1.2rem'}}>CraveCart v6</div>
                 <div className="flex" style={{gap:10}}>
                     <button onClick={() => setApp('admin')} className="btn btn-secondary" style={{width: 'auto'}}>Admin</button>
                     <button onClick={() => setApp('customer')} className="btn btn-primary" style={{width: 'auto'}}>Order</button>
                 </div>
             </div>
             <div className="container text-center" style={{paddingTop: 60}}>
-                <h1 style={{fontSize: '2.5rem', marginBottom: 16}}>Food Delivery <span className="text-primary">Ecosystem</span></h1>
+                <h1 style={{fontSize: '2.5rem', marginBottom: 16}}>Food Delivery <span className="text-primary">App</span></h1>
                 <div className="grid">
                     <button onClick={() => setApp('restaurant')} className="card"><h3>Restaurant Login</h3></button>
                     <button onClick={() => setApp('driver')} className="card"><h3>Driver Login</h3></button>
@@ -183,7 +177,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
                      <input className="input" placeholder={type==='customer'?"Email":"Username"} value={email} onChange={e=>setEmail(e.target.value)} required />
                      <input className="input" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
                      {error && <p style={{color:'red', marginBottom:10}}>{error}</p>}
-                     <button className="btn btn-primary">{loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}</button>
+                     <button className="btn btn-primary">{loading ? 'Processing...' : 'Submit'}</button>
                  </form>
                  {type === 'customer' && <button className="btn-link" onClick={()=>setIsSignup(!isSignup)}>{isSignup ? "Have an account? Login" : "New? Create Account"}</button>}
              </div>
@@ -222,7 +216,6 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     
     if (!user) return <SecureAuth type="customer" onSuccess={()=>{}} onBack={onBack}/>;
     
-    // SAFE PROFILE CHECK
     useEffect(() => { 
         if(!user?.uid || !db) return;
         getDoc(doc(db, 'users', user.uid)).then(s => { 
@@ -246,11 +239,11 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
         <div>
             {view === 'home' && (<div>
                 <div style={{marginBottom:20}}><h2>Hi {profile.name}</h2><small>{profile.address}</small></div>
-                {order && <div className="card" onClick={()=>setView('tracking')} style={{background:'#15803d', color:'white'}}>Active Order: {order.status}</div>}
+                {order && <div className="card" onClick={()=>setView('tracking')} style={{background:'#7e22ce', color:'white'}}>Active Order: {order.status}</div>}
                 <div className="grid">{MOCK_RESTAURANTS.map(r=><div key={r.id} className="card" onClick={()=>{setSelRest(r);setView('rest')}}><img src={r.image} className="card-img"/><b>{r.name}</b></div>)}</div>
             </div>)}
             {view === 'rest' && selRest && (<div><button onClick={()=>setView('home')} className="btn-secondary" style={{width:'auto', marginBottom:10}}>Back</button><h1>{selRest.name}</h1>
-                <div className="grid">{selRest.menu.map(i=><div key={i.id} className="card flex-between"><div><b>{i.name}</b><br/>₹{i.price}</div><button className="btn-primary" style={{width:'auto', padding:'5px 10px'}} onClick={()=>setCart([...cart, {...i, qty:1}])}>Add</button></div>)}</div>
+                <div className="grid">{selRest.menu.map(i=><div key={i.id} className="card flex-between"><div><b>{i.name}</b><br/>₹{i.price}</div><button className="btn-primary" style={{width:'auto', padding:'5px 10px', margin:0}} onClick={()=>setCart([...cart, {...i, qty:1}])}>Add</button></div>)}</div>
                 {cart.length>0 && <button className="btn-primary" style={{position:'fixed', bottom:10, left:10, width:'95%'}} onClick={()=>setView('cart')}>Cart ({cart.length})</button>}
             </div>)}
             {view === 'cart' && (<div><button onClick={()=>setView('rest')} className="btn-secondary" style={{width:'auto', marginBottom:10}}>Back</button><h2>Checkout</h2>
@@ -258,7 +251,7 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
                 <hr/><div className="flex-between"><b>Total (+Del)</b><b>₹{cart.reduce((s,i)=>s+(i.price*i.qty),0)+40}</b></div>
                 <button onClick={placeOrder} className="btn-primary" style={{marginTop:20}}>Place Order (COD)</button>
             </div>)}
-            {view === 'tracking' && order && (<div><h2>Order #{order.id.slice(0,4)}</h2><h1 style={{color:'#15803d', textTransform:'capitalize'}}>{order.status}</h1><p>Driver: {order.driverName || "Finding..."}</p><button onClick={()=>{setOrder(null);setView('home')}} className="btn-secondary">Close</button></div>)}
+            {view === 'tracking' && order && (<div><h2>Order #{order.id.slice(0,4)}</h2><h1 style={{color:'#7e22ce', textTransform:'capitalize'}}>{order.status}</h1><p>Driver: {order.driverName || "Finding..."}</p><button onClick={()=>{setOrder(null);setView('home')}} className="btn-secondary">Close</button></div>)}
         </div>
     )
 }
