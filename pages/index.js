@@ -47,7 +47,6 @@ const cssStyles = `
   .flex { display: flex; align-items: center; }
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  
   .text-primary { color: #2563eb; } 
   .text-green { color: #2e7d32; }
   .text-gray { color: #666; font-size: 0.9rem; }
@@ -55,7 +54,6 @@ const cssStyles = `
   
   .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; justify-content: center; width: 100%; transition: 0.2s; font-size: 1rem; }
   .btn:active { transform: scale(0.98); }
-  
   .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); } 
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
@@ -64,23 +62,17 @@ const cssStyles = `
 
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
   .input:focus { border-color: #2563eb; ring: 2px solid #bfdbfe; }
-  
   .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #eee; }
   .card-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 12px; }
-  
   .header { position: sticky; top: 0; background: white; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); z-index: 100; }
   .logo { font-size: 1.5rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 8px; }
-  
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
   .badge-blue { background: #dbeafe; color: #1e40af; }
   .badge-green { background: #e8f5e9; color: #2e7d32; }
-  
   .portal-card { cursor: pointer; transition: 0.2s; text-align: left; }
   .portal-card:hover { border-color: #2563eb; transform: translateY(-2px); }
-  
   .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .modal { background: white; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-  
   @media (min-width: 768px) {
     .grid { grid-template-columns: 1fr 1fr; }
     .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
@@ -102,10 +94,6 @@ export default function App() {
 
   useEffect(() => {
     if (initError) { setLoading(false); return; }
-    const initAuth = async () => {
-        // No anonymous login for users
-    };
-    initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
@@ -205,7 +193,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
     const [isSignup, setIsSignup] = useState(false);
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
-    const [name, setName] = useState(''); // Only for signup
+    const [name, setName] = useState(''); 
     const [error, setError] = useState(''); 
     const [loading, setLoading] = useState(false);
     const db = getFirestore(); 
@@ -215,27 +203,24 @@ function SecureAuth({ type, onSuccess, onBack }) {
         e.preventDefault();
         setLoading(true);
         setError("");
-        
         try {
             let user;
             if (isSignup) {
-                // Create New Account
                 if (!name.trim()) throw new Error("Name is required");
                 const result = await createUserWithEmailAndPassword(auth, identifier, secret);
                 user = result.user;
                 await updateProfile(user, { displayName: name });
             } else {
-                // Login Existing Account
                 const result = await signInWithEmailAndPassword(auth, identifier, secret);
                 user = result.user;
             }
             onSuccess({ name: user.displayName || name, uid: user.uid });
         } catch (err) {
             console.error(err);
-            if (err.code === 'auth/email-already-in-use') setError("Email already registered. Try logging in.");
+            if (err.code === 'auth/email-already-in-use') setError("Email taken. Try logging in.");
             else if (err.code === 'auth/wrong-password') setError("Incorrect password.");
-            else if (err.code === 'auth/user-not-found') setError("No account found. Create one.");
-            else if (err.code === 'auth/weak-password') setError("Password should be at least 6 characters.");
+            else if (err.code === 'auth/user-not-found') setError("No account found. Sign up.");
+            else if (err.code === 'auth/weak-password') setError("Password must be 6+ chars.");
             else setError(err.message);
             setLoading(false);
         }
@@ -267,7 +252,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  
                  <div className="text-center" style={{marginBottom: 24}}>
                      <h2>{type === 'customer' ? (isSignup ? 'Create Account' : 'Welcome Back') : 'Secure Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? (isSignup ? 'Sign up to start ordering' : 'Login to your account') : 'Enter Partner Credentials'}</p>
+                     <p className="text-gray">{type === 'customer' ? (isSignup ? 'Sign up to order food' : 'Login to your account') : 'Enter Credentials'}</p>
                  </div>
 
                  {type === 'customer' ? ( 
@@ -276,7 +261,7 @@ function SecureAuth({ type, onSuccess, onBack }) {
                             <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
                         )}
                         <input type="email" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Email Address" required />
-                        <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password" required />
+                        <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password (Min 6 chars)" required />
                         
                         {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
                         
@@ -359,28 +344,21 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     const [view, setView] = useState('home'); 
     const [profileChecked, setProfileChecked] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
-    
     const [selectedRestaurant, setSelectedRestaurant] = useState(null); 
     const [activeOrder, setActiveOrder] = useState(null); 
     const [paymentMethod, setPaymentMethod] = useState('upi'); 
-    
     const db = getFirestore(); 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    
     const { itemTotal, deliveryFee, tax, grandTotal } = useMemo(() => { const itemTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0); const deliveryFee = itemTotal > 500 ? 0 : 40; const tax = itemTotal * 0.05; return { itemTotal, deliveryFee, tax, grandTotal: itemTotal + deliveryFee + tax }; }, [cart]);
     const upiId = "pritamanime-1@okhdfcbank"; const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${upiId}&pn=CraveCart&am=${grandTotal}&cu=INR`;
 
-    // 1. Auth Check
     if (!user || user.isAnonymous) return <SecureAuth type="customer" onSuccess={(u) => {}} onBack={onBack} />;
 
-    // 2. Profile Check
     useEffect(() => {
         const checkProfile = async () => {
             const docRef = doc(db, 'users', user.uid);
             const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                setUserProfile(docSnap.data());
-            }
+            if (docSnap.exists()) setUserProfile(docSnap.data());
             setProfileChecked(true);
         };
         checkProfile();
@@ -389,7 +367,6 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     if (!profileChecked) return <div className="container text-center" style={{marginTop:100}}>Checking Profile...</div>;
     if (!userProfile) return <ProfileSetup user={user} onComplete={(p) => setUserProfile(p)} />;
 
-    // ... Regular Logic ...
     useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
     
     const placeOrder = async () => { 
@@ -397,9 +374,8 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
             items: cart, total: grandTotal, 
             restaurantId: selectedRestaurant.id, restaurantName: selectedRestaurant.name, 
             userId: user.uid, status: 'placed', createdAt: serverTimestamp(), 
-            customerName: userProfile.name, // Use Profile Name
-            customerPhone: userProfile.phone, // Use Profile Phone
-            address: userProfile.address + ", " + userProfile.city, // Use Profile Address
+            customerName: userProfile.name, customerPhone: userProfile.phone, 
+            address: userProfile.address + ", " + userProfile.city, 
             driverId: null, paymentMethod: paymentMethod 
         }; 
         const res = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), order); 
@@ -459,14 +435,12 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
                         <hr style={{margin: '16px 0', border:'none', borderTop:'1px dashed #ddd'}}/>
                         <div className="flex-between"><b>Total</b><b>₹{grandTotal.toFixed(2)}</b></div>
                     </div>
-                    
                     <div style={{background:'#f8f9fa', padding:16, borderRadius:12, marginBottom: 20}}>
                         <div style={{fontSize:'0.8rem', color:'#666', fontWeight:'bold', marginBottom:4}}>DELIVER TO</div>
                         <div>{userProfile.address}</div>
                         <div>{userProfile.city}</div>
                         <div>Phone: {userProfile.phone}</div>
                     </div>
-
                     <div style={{marginBottom: 20}}>
                         <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='upi'} onChange={()=>setPaymentMethod('upi')} style={{marginRight: 10}}/> UPI (Scan QR)</label>
                         <label className="card flex" style={{padding: 10, cursor:'pointer'}}><input type="radio" checked={paymentMethod==='cod'} onChange={()=>setPaymentMethod('cod')} style={{marginRight: 10}}/> Cash on Delivery</label>
