@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
-  getAuth, onAuthStateChanged, updateProfile, signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously 
+  getAuth, onAuthStateChanged, updateProfile, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInAnonymously 
 } from 'firebase/auth';
 import { 
   getFirestore, collection, addDoc, query, onSnapshot, 
@@ -57,11 +57,11 @@ const cssStyles = `
   .btn:active { transform: scale(0.98); }
   
   .btn-primary { background: #2563eb; color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3); } 
-  .btn-google { background: #fff; color: #333; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 16px; }
   .btn-secondary { background: #fff; border: 1px solid #ddd; color: #333; }
   .btn-danger { color: #d32f2f; background: transparent; }
   .btn-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  
+  .btn-link { background: none; border: none; color: #2563eb; font-weight: bold; cursor: pointer; font-size: 0.9rem; text-decoration: underline; }
+
   .input { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 12px; font-size: 1rem; outline: none; margin-bottom: 12px; background: #fff; }
   .input:focus { border-color: #2563eb; ring: 2px solid #bfdbfe; }
   
@@ -102,6 +102,10 @@ export default function App() {
 
   useEffect(() => {
     if (initError) { setLoading(false); return; }
+    const initAuth = async () => {
+        // No anonymous login for users
+    };
+    initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
     return () => unsubscribe();
   }, []);
@@ -196,26 +200,43 @@ function PortalHeader({ activeApp, user, onLogout, cartCount }) {
     )
 }
 
-// --- SECURE AUTH & PROFILE SETUP ---
+// --- SECURE AUTH COMPONENT (EMAIL + PARTNER LOGIN) ---
 function SecureAuth({ type, onSuccess, onBack }) {
+    const [isSignup, setIsSignup] = useState(false);
     const [identifier, setIdentifier] = useState(''); 
     const [secret, setSecret] = useState(''); 
+    const [name, setName] = useState(''); // Only for signup
     const [error, setError] = useState(''); 
     const [loading, setLoading] = useState(false);
     const db = getFirestore(); 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-    const handleGoogleLogin = async () => {
+    const handleCustomerAuth = async (e) => {
+        e.preventDefault();
         setLoading(true);
         setError("");
-        const provider = new GoogleAuthProvider();
+        
         try {
-            const result = await signInWithPopup(auth, provider);
-            const user = result.user;
-            onSuccess({ name: user.displayName, uid: user.uid });
-        } catch (error) {
-            console.error(error);
-            setError("Google Login Failed. Ensure 'Authorized Domains' is set in Firebase. " + error.message);
+            let user;
+            if (isSignup) {
+                // Create New Account
+                if (!name.trim()) throw new Error("Name is required");
+                const result = await createUserWithEmailAndPassword(auth, identifier, secret);
+                user = result.user;
+                await updateProfile(user, { displayName: name });
+            } else {
+                // Login Existing Account
+                const result = await signInWithEmailAndPassword(auth, identifier, secret);
+                user = result.user;
+            }
+            onSuccess({ name: user.displayName || name, uid: user.uid });
+        } catch (err) {
+            console.error(err);
+            if (err.code === 'auth/email-already-in-use') setError("Email already registered. Try logging in.");
+            else if (err.code === 'auth/wrong-password') setError("Incorrect password.");
+            else if (err.code === 'auth/user-not-found') setError("No account found. Create one.");
+            else if (err.code === 'auth/weak-password') setError("Password should be at least 6 characters.");
+            else setError(err.message);
             setLoading(false);
         }
     };
@@ -245,25 +266,28 @@ function SecureAuth({ type, onSuccess, onBack }) {
                  <button onClick={onBack} style={{position:'absolute', top:16, right:16, border:'none', background:'none', cursor:'pointer'}}><X size={24} color="#999"/></button>
                  
                  <div className="text-center" style={{marginBottom: 24}}>
-                     <h2>{type === 'customer' ? 'Sign In' : 'Secure Login'}</h2>
-                     <p className="text-gray">{type === 'customer' ? 'Secure login to place orders' : 'Enter Partner Credentials'}</p>
+                     <h2>{type === 'customer' ? (isSignup ? 'Create Account' : 'Welcome Back') : 'Secure Login'}</h2>
+                     <p className="text-gray">{type === 'customer' ? (isSignup ? 'Sign up to start ordering' : 'Login to your account') : 'Enter Partner Credentials'}</p>
                  </div>
 
                  {type === 'customer' ? ( 
-                    <div className="text-center">
+                    <form onSubmit={handleCustomerAuth}>
+                        {isSignup && (
+                            <input type="text" value={name} onChange={e=>setName(e.target.value)} className="input" placeholder="Full Name" required />
+                        )}
+                        <input type="email" value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Email Address" required />
+                        <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="Password" required />
+                        
                         {error && <p style={{color:'red', marginBottom:10, fontSize:'0.9rem'}}>{error}</p>}
                         
-                        <button onClick={handleGoogleLogin} className="btn btn-google" style={{display:'flex', alignItems:'center', justifyContent:'center', gap:10, width:'100%'}}>
-                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style={{width:20}}/>
-                            {loading ? 'Connecting...' : 'Continue with Google'}
-                        </button>
+                        <button className="btn btn-primary">{loading ? 'Processing...' : (isSignup ? 'Sign Up' : 'Login')}</button>
                         
-                        <div style={{marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16}}>
-                            <p className="text-gray" style={{fontSize: '0.8rem'}}>
-                                No password required.<br/>Instant access with your Google Account.
-                            </p>
+                        <div style={{marginTop: 16, textAlign: 'center'}}>
+                            <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="btn-link">
+                                {isSignup ? "Already have an account? Login" : "New here? Create Account"}
+                            </button>
                         </div>
-                    </div>
+                    </form>
                  ) : ( 
                     <form onSubmit={handlePartnerLogin}>
                         <input value={identifier} onChange={e=>setIdentifier(e.target.value)} className="input" placeholder="Username" required />
@@ -279,7 +303,6 @@ function SecureAuth({ type, onSuccess, onBack }) {
 
 // --- NEW COMPONENT: PROFILE SETUP ---
 function ProfileSetup({ user, onComplete }) {
-    const [name, setName] = useState(user.displayName || '');
     const [phone, setPhone] = useState('');
     const [city, setCity] = useState('');
     const [address, setAddress] = useState('');
@@ -291,16 +314,14 @@ function ProfileSetup({ user, onComplete }) {
         setLoading(true);
         try {
             await setDoc(doc(db, 'users', user.uid), {
-                name,
+                name: user.displayName,
+                email: user.email,
                 phone,
                 city,
                 address,
-                email: user.email,
                 createdAt: serverTimestamp()
             });
-            // Also update Auth profile just in case
-            await updateProfile(user, { displayName: name });
-            onComplete({ name, phone, city, address });
+            onComplete({ name: user.displayName, phone, city, address });
         } catch (error) {
             alert("Error saving profile: " + error.message);
             setLoading(false);
@@ -312,12 +333,9 @@ function ProfileSetup({ user, onComplete }) {
             <div className="modal">
                 <div className="text-center mb-6">
                     <h2>Complete Profile</h2>
-                    <p className="text-gray">Please provide details to continue</p>
+                    <p className="text-gray">One last step! Where should we deliver?</p>
                 </div>
                 <form onSubmit={saveProfile}>
-                    <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Full Name</label>
-                    <input className="input" value={name} onChange={e=>setName(e.target.value)} required />
-                    
                     <label className="text-gray" style={{fontSize:'0.8rem', fontWeight:'bold'}}>Phone Number</label>
                     <input className="input" type="tel" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+91 98765 43210" required />
                     
@@ -328,7 +346,7 @@ function ProfileSetup({ user, onComplete }) {
                     <textarea className="input" rows="2" value={address} onChange={e=>setAddress(e.target.value)} placeholder="Flat No, Building, Street" required />
                     
                     <button className="btn btn-primary" style={{marginTop: 10}} disabled={loading}>
-                        {loading ? 'Saving...' : 'Save & Continue'}
+                        {loading ? 'Saving...' : 'Save & Start Ordering'}
                     </button>
                 </form>
             </div>
@@ -355,7 +373,7 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     // 1. Auth Check
     if (!user || user.isAnonymous) return <SecureAuth type="customer" onSuccess={(u) => {}} onBack={onBack} />;
 
-    // 2. Profile Check (New)
+    // 2. Profile Check
     useEffect(() => {
         const checkProfile = async () => {
             const docRef = doc(db, 'users', user.uid);
@@ -371,9 +389,7 @@ function CustomerPortal({ user, cart, setCart, onBack }) {
     if (!profileChecked) return <div className="container text-center" style={{marginTop:100}}>Checking Profile...</div>;
     if (!userProfile) return <ProfileSetup user={user} onComplete={(p) => setUserProfile(p)} />;
 
-    // ... Regular Customer Logic ...
-    // Note: I removed the deliveryAddress state because now we use userProfile.address by default
-    
+    // ... Regular Logic ...
     useEffect(() => { if (!activeOrder?.id) return; const unsub = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'orders', activeOrder.id), (doc) => { if(doc.exists()) setActiveOrder(prev => ({...prev, ...doc.data()})); }); return () => unsub(); }, [activeOrder?.id]);
     
     const placeOrder = async () => { 
