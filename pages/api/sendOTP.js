@@ -1,3 +1,4 @@
 export default function handler(req, res) {
-  res.status(200).json({ status: "Disabled" });
+  // We switched to Google/Email login, so this file is disabled.
+  res.status(200).json({ message: "OTP System Disabled" });
 }
