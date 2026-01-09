@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // This ignores simple errors so the build can finish
-  eslint: {
-    ignoreDuringBuilds: true,
+  output: 'export',  // <--- THIS IS THE MAGIC LINE
+  images: {
+    unoptimized: true, // Required for GitHub Pages
   },
 }
 
